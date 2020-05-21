@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Wound Analysis</string>
+    <string name="buttonCamera">Camera</string>
+    <string name="buttonLibrary">Library</string>
 </resources>
