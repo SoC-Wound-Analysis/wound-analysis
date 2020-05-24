@@ -3,15 +3,15 @@ package sg.edu.woundanalysis
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.Camera
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageCapture
-import androidx.camera.core.Preview
+import androidx.camera.core.*
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import kotlinx.android.synthetic.main.activity_main.*
 import java.io.File
 import java.util.concurrent.ExecutorService
@@ -72,14 +72,37 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startCamera() {
-        // todo
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+
+        cameraProviderFuture.addListener(Runnable {
+            // Bind the camera to lifecycle
+            val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
+
+            // Preview
+            preview = Preview.Builder().build()
+
+            // Select the camera used
+            val cameraSelector = CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build()
+
+            try {
+                //Unbind before rebinding
+                cameraProvider.unbindAll()
+
+                // Bing to camera
+                camera = cameraProvider.bindToLifecycle(
+                        this, cameraSelector, preview)
+                preview?.setSurfaceProvider(viewPreview.createSurfaceProvider(camera?.cameraInfo))
+            } catch(e: Exception) {
+                Log.e(TAG, "Use case binding failed", e)
+            }
+        }, ContextCompat.getMainExecutor(this))
     }
 
 
     companion object {
         private val PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
         private const val REQUEST_CODE_PERMISSIONS = 10
-        private const val TAG = R.string.app_name
+        private const val TAG = R.string.app_name.toString()
         private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
 
     }
