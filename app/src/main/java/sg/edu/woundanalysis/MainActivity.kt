@@ -2,6 +2,7 @@ package sg.edu.woundanalysis
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.hardware.camera2.CameraDevice
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -42,6 +43,9 @@ class MainActivity : AppCompatActivity() {
         cameraExecutor = Executors.newSingleThreadExecutor()
     }
 
+    /**
+     * Handles Permission results.
+     */
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (allPermissionsGranted()) {
@@ -71,6 +75,9 @@ class MainActivity : AppCompatActivity() {
         ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
     }
 
+    /**
+     * Initializes the camera device with CameraX API.
+     */
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
 
@@ -88,7 +95,7 @@ class MainActivity : AppCompatActivity() {
                 //Unbind before rebinding
                 cameraProvider.unbindAll()
 
-                // Bing to camera
+                // Bind to camera
                 camera = cameraProvider.bindToLifecycle(
                         this, cameraSelector, preview)
                 preview?.setSurfaceProvider(viewPreview.createSurfaceProvider(camera?.cameraInfo))
