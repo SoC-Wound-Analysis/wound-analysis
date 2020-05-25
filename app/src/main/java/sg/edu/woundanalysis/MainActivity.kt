@@ -28,10 +28,6 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
-    //Useless CameraX variables
-    private var preview: Preview? = null
-    private var imageCapture: ImageCapture? = null
-    private var imageAnalyzer: ImageAnalysis? = null
 
     private lateinit var outputDirectory: File
     private lateinit var cameraExecutor: ExecutorService
@@ -102,21 +98,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Initializes the camera device with CameraX API.
+     * Initializes the camera device with camera2 API.
      */
     private fun startCamera() {
         val cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        val tofCamera = cameraManager.cameraIdList[0]
 
-        Log.d(TAG, "Hello World!")
-        Log.d(TAG, cameraManager.cameraIdList[4])
-
+        // For unknown reasons, permission checks are required within the function despite being handled in onCreate()
         if (ActivityCompat.checkSelfPermission(baseContext,
-                        android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                        Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             return
         }
 
-        cameraManager.openCamera(tofCamera, object:
+        cameraManager.openCamera(RGB_CAMERA_ID, object:
                 CameraDevice.StateCallback() {
 
             // Unused listeners
@@ -128,8 +121,10 @@ class MainActivity : AppCompatActivity() {
 
                 cameraCharacteristics[CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP]?.let { streamConfigurationMap ->
 
-                    streamConfigurationMap.getOutputSizes(ImageFormat.JPEG)?.let { yuvSizes ->
-                        val previewSize = yuvSizes.last()
+                    streamConfigurationMap.getInputSizes(ImageFormat.JPEG)?.let { yuvSizes ->
+                        val previewSize = yuvSizes.first()
+                        Log.d(TAG, "hello nigga!!!")
+                        Log.d(TAG, previewSize.height.toString() + ',' + previewSize.width.toString())
 
                         val displayRotation = windowManager.defaultDisplay.rotation
                         val swappedDimensions = areDimensionsSwapped(displayRotation, cameraCharacteristics)
@@ -137,6 +132,8 @@ class MainActivity : AppCompatActivity() {
                         // Choose the correct width and height
                         val rotatedPreviewHeight = if (swappedDimensions) previewSize.width else previewSize.height
                         val rotatedPreviewWidth = if (swappedDimensions) previewSize.height else previewSize.width
+
+                        surfaceView.holder.setFixedSize(rotatedPreviewWidth, rotatedPreviewHeight)
                     }
                 }
 
@@ -195,7 +192,8 @@ class MainActivity : AppCompatActivity() {
         private const val REQUEST_CODE_PERMISSIONS = 10
         private const val TAG = R.string.app_name.toString()
         private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
-        private const val TOF_CAMERA_ID = 4
+        private const val TOF_CAMERA_ID = "4"
+        private const val RGB_CAMERA_ID = "0"
 
     }
 
