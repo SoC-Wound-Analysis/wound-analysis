@@ -112,7 +112,7 @@ class MainActivity : AppCompatActivity() {
         cameraManager.openCamera(RGB_CAMERA_ID, object:
                 CameraDevice.StateCallback() {
 
-            // Unused listeners
+            // Unused callbacks
             override fun onDisconnected(camera: CameraDevice) {}
             override fun onError(camera: CameraDevice, error: Int) {}
 
@@ -121,9 +121,9 @@ class MainActivity : AppCompatActivity() {
 
                 cameraCharacteristics[CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP]?.let { streamConfigurationMap ->
 
-                    streamConfigurationMap.getInputSizes(ImageFormat.JPEG)?.let { yuvSizes ->
-                        val previewSize = yuvSizes.first()
-                        Log.d(TAG, "hello nigga!!!")
+                    streamConfigurationMap.getOutputSizes(ImageFormat.JPEG)?.let { yuvSizes ->
+                        val previewSize = yuvSizes.last()
+                        Log.d(TAG, "hello!!!")
                         Log.d(TAG, previewSize.height.toString() + ',' + previewSize.width.toString())
 
                         val displayRotation = windowManager.defaultDisplay.rotation
@@ -133,7 +133,7 @@ class MainActivity : AppCompatActivity() {
                         val rotatedPreviewHeight = if (swappedDimensions) previewSize.width else previewSize.height
                         val rotatedPreviewWidth = if (swappedDimensions) previewSize.height else previewSize.width
 
-                        surfaceView.holder.setFixedSize(rotatedPreviewWidth, rotatedPreviewHeight)
+                        surfaceView.holder.setFixedSize(rotatedPreviewWidth * 4, rotatedPreviewHeight * 4)
                     }
                 }
 
