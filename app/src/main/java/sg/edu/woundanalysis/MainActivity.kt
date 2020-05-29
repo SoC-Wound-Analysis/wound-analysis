@@ -46,11 +46,13 @@ class MainActivity : AppCompatActivity() {
 
             val streamConfigMap = cameraCharacteristics[CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP]!!
 
-            if (ImageFormat.JPEG in streamConfigMap!!.outputFormats) {
+            /*
+            if (ImageFormat.DEPTH_JPEG in streamConfigMap!!.outputFormats) {
                 Log.d(TAG, "JPEG supported")
             } else {
                 Log.d(TAG, "JPEG not supported")
             }
+             */
 
             val previewSize = streamConfigMap
                     .getOutputSizes(ImageFormat.JPEG)!!
@@ -58,8 +60,11 @@ class MainActivity : AppCompatActivity() {
                             it.height < Resources.getSystem().displayMetrics.heightPixels }
                     .maxBy { it.height * it.width }!!
 
+            /*
             streamConfigMap.getOutputSizes(ImageFormat.JPEG)!!
                     .forEach { Log.d(TAG, "Width: ${it.width}, Height: ${it.height}") }
+
+             */
 
             // Choose the correct width and height based on orientation
             val displayRotation = windowManager.defaultDisplay.rotation
