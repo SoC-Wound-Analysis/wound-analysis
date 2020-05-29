@@ -3,6 +3,8 @@ package sg.edu.woundanalysis
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.res.Resources
+import android.graphics.Camera
 import android.graphics.ImageFormat
 import android.hardware.camera2.*
 import android.media.ImageReader
@@ -42,17 +44,34 @@ class MainActivity : AppCompatActivity() {
         override fun onOpened(cameraDevice: CameraDevice) {
             val cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraDevice.id)
 
-            val previewSize = cameraCharacteristics[CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP]!!
-                    .getOutputSizes(ImageFormat.DEPTH16)!!.maxBy { it.height * it.width }!!
+            val streamConfigMap = cameraCharacteristics[CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP]!!
+
+            if (ImageFormat.JPEG in streamConfigMap!!.outputFormats) {
+                Log.d(TAG, "JPEG supported")
+            } else {
+                Log.d(TAG, "JPEG not supported")
+            }
+
+            val previewSize = streamConfigMap
+                    .getOutputSizes(ImageFormat.JPEG)!!
+                    .filter { it.width < Resources.getSystem().displayMetrics.widthPixels &&
+                            it.height < Resources.getSystem().displayMetrics.heightPixels }
+                    .maxBy { it.height * it.width }!!
+
+            streamConfigMap.getOutputSizes(ImageFormat.JPEG)!!
+                    .forEach { Log.d(TAG, "Width: ${it.width}, Height: ${it.height}") }
 
             // Choose the correct width and height based on orientation
             val displayRotation = windowManager.defaultDisplay.rotation
             val swappedDimensions = areDimensionsSwapped(displayRotation, cameraCharacteristics)
             val rotatedPreviewHeight = if (swappedDimensions) previewSize.width else previewSize.height
             val rotatedPreviewWidth = if (swappedDimensions) previewSize.height else previewSize.width
-            surfaceView.holder.setFixedSize(rotatedPreviewWidth * 4, rotatedPreviewHeight * 4)
+            surfaceView.holder.setFixedSize(rotatedPreviewWidth, rotatedPreviewHeight)
 
-            imageReader = ImageReader.newInstance(rotatedPreviewWidth, rotatedPreviewHeight, ImageFormat.DEPTH16, 1)
+            // Logs width and height
+            Log.d(TAG, "Width: $rotatedPreviewWidth, Height: $rotatedPreviewHeight")
+
+            imageReader = ImageReader.newInstance(rotatedPreviewWidth, rotatedPreviewHeight, ImageFormat.JPEG, 1)
 
             // Targets for the CaptureSession
             val targets = listOf(surfaceView.holder.surface, imageReader.surface)
@@ -138,8 +157,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         val tofCameraId: String = getTofCamera()
+        // Hardcoded RGC camera ID
+        val rbgCameraID = "0"
 
-        cameraManager.openCamera(tofCameraId, openCameraCallback, Handler { true })
+        cameraManager.openCamera(rbgCameraID, openCameraCallback, Handler { true })
     }
 
     /**
