@@ -7,6 +7,8 @@ import android.graphics.ImageFormat
 import android.hardware.camera2.*
 import android.media.ImageReader
 import android.os.Bundle
+import android.os.Handler
+import android.os.HandlerThread
 import android.util.Log
 import android.view.Surface
 import android.view.SurfaceHolder
@@ -22,10 +24,14 @@ import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
 
-    private val cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+    private val cameraManager by lazy { getSystemService(Context.CAMERA_SERVICE) as CameraManager }
     private lateinit var outputDirectory: File
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var imageReader : ImageReader
+
+    // Image Reader thread
+    private val imageReaderThread = HandlerThread("imageReaderThread").apply { start() }
+    private val imageReaderHandler = Handler(imageReaderThread.looper)
 
     val openCameraCallback = object : CameraDevice.StateCallback() {
 
@@ -37,7 +43,7 @@ class MainActivity : AppCompatActivity() {
             val cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraDevice.id)
 
             val previewSize = cameraCharacteristics[CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP]!!
-                    .getOutputSizes(ImageFormat.JPEG)!!.maxBy { it.height * it.width }
+                    .getOutputSizes(ImageFormat.DEPTH16)!!.maxBy { it.height * it.width }!!
 
             // Choose the correct width and height based on orientation
             val displayRotation = windowManager.defaultDisplay.rotation
@@ -46,7 +52,7 @@ class MainActivity : AppCompatActivity() {
             val rotatedPreviewWidth = if (swappedDimensions) previewSize.height else previewSize.width
             surfaceView.holder.setFixedSize(rotatedPreviewWidth * 4, rotatedPreviewHeight * 4)
 
-            imageReader = ImageReader.newInstance(previewSize.width, previewSize.height, ImageFormat.JPEG, 1)
+            imageReader = ImageReader.newInstance(rotatedPreviewWidth, rotatedPreviewHeight, ImageFormat.DEPTH16, 1)
 
             // Targets for the CaptureSession
             val targets = listOf(surfaceView.holder.surface, imageReader.surface)
@@ -64,15 +70,14 @@ class MainActivity : AppCompatActivity() {
 
                     session.setRepeatingRequest(
                             previewRequestBuilder.build(),
-                            object : CameraCaptureSession.CaptureCallback() {},
-                            android.os.Handler { true }
+                          object : CameraCaptureSession.CaptureCallback() {},
+                           Handler { true }
                     )
                 }
             }
 
             cameraDevice.createCaptureSession(targets,
-                    captureCallback, android.os.Handler { true })
-
+                    captureCallback, Handler { true })
         }
 
     }
@@ -134,7 +139,7 @@ class MainActivity : AppCompatActivity() {
 
         val tofCameraId: String = getTofCamera()
 
-        cameraManager.openCamera(tofCameraId, openCameraCallback, android.os.Handler { true })
+        cameraManager.openCamera(tofCameraId, openCameraCallback, Handler { true })
     }
 
     /**
