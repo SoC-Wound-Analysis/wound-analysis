@@ -15,27 +15,18 @@
             android:minHeight="?attr/actionBarSize" android:id="@+id/appbar"
             app:layout_constraintTop_toTopOf="parent" app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"/>
-    <androidx.appcompat.widget.Toolbar
-            android:layout_width="match_parent"
+
+    <SurfaceView
+            android:id="@+id/surfaceView"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="?attr/colorPrimary"
-            android:theme="?attr/actionBarTheme"
-            android:minHeight="?attr/actionBarSize"
-            android:id="@+id/actionbar"
-            app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"/>
-    <LinearLayout
-            android:orientation="horizontal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" app:layout_constraintTop_toTopOf="@+id/actionbar"
-            app:layout_constraintBottom_toBottomOf="@+id/actionbar">
-        <Button
-                android:text="@string/buttonCamera"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent" android:id="@+id/button" android:layout_weight="1"/>
-        <Button
-                android:text="@string/buttonLibrary"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent" android:id="@+id/button2" android:layout_weight="1"/>
-    </LinearLayout>
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintTop_toBottomOf="@+id/appbar"/>
+    <Button
+            android:text="Capture"
+            android:layout_width="wrap_content"
+            android:layout_height="100dp" android:id="@+id/btn_capture"
+            app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent"
+            android:elevation="20sp" app:layout_constraintBottom_toBottomOf="parent"/>
 </androidx.constraintlayout.widget.ConstraintLayout>
