@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.ImageFormat
 import android.hardware.camera2.*
+import android.media.ImageReader
 import android.os.Bundle
 import android.util.Log
 import android.view.Surface
@@ -24,6 +25,7 @@ class MainActivity : AppCompatActivity() {
     private val cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
     private lateinit var outputDirectory: File
     private lateinit var cameraExecutor: ExecutorService
+    private lateinit var imageReader : ImageReader
 
     val openCameraCallback = object : CameraDevice.StateCallback() {
 
@@ -34,21 +36,20 @@ class MainActivity : AppCompatActivity() {
         override fun onOpened(cameraDevice: CameraDevice) {
             val cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraDevice.id)
 
-            cameraCharacteristics[CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP]?.let { streamConfigurationMap ->
+            val previewSize = cameraCharacteristics[CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP]!!
+                    .getOutputSizes(ImageFormat.JPEG)!!.maxBy { it.height * it.width }
 
-                streamConfigurationMap.getOutputSizes(ImageFormat.JPEG)?.let { yuvSizes ->
-                    val previewSize = yuvSizes.last()
+            // Choose the correct width and height based on orientation
+            val displayRotation = windowManager.defaultDisplay.rotation
+            val swappedDimensions = areDimensionsSwapped(displayRotation, cameraCharacteristics)
+            val rotatedPreviewHeight = if (swappedDimensions) previewSize.width else previewSize.height
+            val rotatedPreviewWidth = if (swappedDimensions) previewSize.height else previewSize.width
+            surfaceView.holder.setFixedSize(rotatedPreviewWidth * 4, rotatedPreviewHeight * 4)
 
-                    val displayRotation = windowManager.defaultDisplay.rotation
-                    val swappedDimensions = areDimensionsSwapped(displayRotation, cameraCharacteristics)
+            imageReader = ImageReader.newInstance(previewSize.width, previewSize.height, ImageFormat.JPEG, 1)
 
-                    // Choose the correct width and height
-                    val rotatedPreviewHeight = if (swappedDimensions) previewSize.width else previewSize.height
-                    val rotatedPreviewWidth = if (swappedDimensions) previewSize.height else previewSize.width
-
-                    surfaceView.holder.setFixedSize(rotatedPreviewWidth * 4, rotatedPreviewHeight * 4)
-                }
-            }
+            // Targets for the CaptureSession
+            val targets = listOf(surfaceView.holder.surface, imageReader.surface)
 
             // I dunno where to put this part
             val previewSurface = surfaceView.holder.surface
@@ -69,7 +70,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            cameraDevice.createCaptureSession(mutableListOf(previewSurface),
+            cameraDevice.createCaptureSession(targets,
                     captureCallback, android.os.Handler { true })
 
         }

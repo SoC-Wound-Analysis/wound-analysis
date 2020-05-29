@@ -4,10 +4,9 @@ import android.media.Image
 import java.nio.ShortBuffer
 import kotlin.experimental.and
 
-class TofUtil(image : Image) {
+class TofUtil() {
 
     init {
-
     }
 
     companion object {
