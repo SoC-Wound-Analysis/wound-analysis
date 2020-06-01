@@ -31,6 +31,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var imageReader : ImageReader
 
+    // Camera thread
+    private val cameraThread = HandlerThread("CameraThread").apply { start() }
+    private val cameraThreadHandler = Handler(cameraThread.looper)
+
     // Image Reader thread
     private val imageReaderThread = HandlerThread("imageReaderThread").apply { start() }
     private val imageReaderHandler = Handler(imageReaderThread.looper)
@@ -165,7 +169,7 @@ class MainActivity : AppCompatActivity() {
         // Hardcoded RGC camera ID
         val rbgCameraID = "0"
 
-        cameraManager.openCamera(rbgCameraID, openCameraCallback, Handler { true })
+        cameraManager.openCamera(rbgCameraID, openCameraCallback, cameraThreadHandler)
     }
 
     /**
