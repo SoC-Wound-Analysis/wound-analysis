@@ -170,6 +170,12 @@ class MainActivity : AppCompatActivity() {
         val rbgCameraID = "0"
 
         cameraManager.openCamera(rbgCameraID, openCameraCallback, cameraThreadHandler)
+
+        imageReader.setOnImageAvailableListener({ reader ->
+            val image = reader.acquireNextImage()
+            Log.d(TAG, "Image available in queue: ${image.timestamp}")
+            val depthMask = TofUtil.getDepthMask(image)
+        }, imageReaderHandler)
     }
 
     /**

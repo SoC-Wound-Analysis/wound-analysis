@@ -13,7 +13,6 @@ class TofUtil() {
         const val WIDTH : Int = 200
         const val HEIGHT : Int = 180
 
-        /*
         fun getDepthMask(image : Image) : Array<Int> {
             val shortDepthBuffer : ShortBuffer =
             image.getPlanes()[0].getBuffer().asShortBuffer()
@@ -30,13 +29,10 @@ class TofUtil() {
             return mask
         }
 
-         */
-
         fun extractRange(sample : Short, confidenceFilter : Float) : Int {
             val depthRange = sample and 0x1FFF
             return depthRange.toInt()
         }
-
 
     }
 }
