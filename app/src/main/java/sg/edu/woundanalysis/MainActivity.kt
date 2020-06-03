@@ -163,9 +163,6 @@ class MainActivity : AppCompatActivity() {
         // Request camera permission
         ActivityCompat.requestPermissions(this, PERMISSIONS, REQUEST_CODE_PERMISSIONS)
 
-        // Set surfaceView's callback
-        surfaceView.holder.addCallback(surfaceReadyCallback)
-
         // Listener for take photo button
         btn_capture.setOnClickListener(capturePhoto())
 
@@ -202,23 +199,6 @@ class MainActivity : AppCompatActivity() {
                     }
                     .maxBy { it.height * it.width }!!
 
-            /*
-            streamConfigMap.getOutputSizes(ImageFormat.JPEG)!!
-                    .forEach { Log.d(TAG, "Width: ${it.width}, Height: ${it.height}") }
-             */
-
-
-            /*
-            // Choose the correct width and height based on orientation
-            val displayRotation = windowManager.defaultDisplay.rotation
-            val swappedDimensions = areDimensionsSwapped(displayRotation, cameraCharacteristics)
-            val rotatedPreviewHeight = if (swappedDimensions) previewSize.width else previewSize.height
-            val rotatedPreviewWidth = if (swappedDimensions) previewSize.height else previewSize.width
-            surfaceView.holder.setFixedSize(rotatedPreviewWidth, rotatedPreviewHeight)
-            // Logs width and height
-            Log.d(TAG, "Width: $rotatedPreviewWidth, Height: $rotatedPreviewHeight")
-             */
-
             imageReader = ImageReader.newInstance(WIDTH, HEIGHT, ImageFormat.DEPTH16, 1)
 
             imageReader.setOnImageAvailableListener({ reader ->
@@ -237,15 +217,11 @@ class MainActivity : AppCompatActivity() {
             //val targets = listOf(surfaceView.holder.surface, imageReader.surface)
             val targets = listOf(imageReader.surface)
 
-            // I dunno where to put this part
-            val previewSurface = surfaceView.holder.surface
-
             val captureCallback = object : CameraCaptureSession.StateCallback() {
                 override fun onConfigureFailed(session: CameraCaptureSession) {}
 
                 override fun onConfigured(session: CameraCaptureSession) {
                     val previewRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
-                        addTarget(previewSurface)
                     }
 
                     session.setRepeatingRequest(
@@ -260,17 +236,6 @@ class MainActivity : AppCompatActivity() {
                     captureCallback, Handler { true })
         }
 
-    }
-
-    val surfaceReadyCallback = object : SurfaceHolder.Callback {
-
-        // Unused listeners
-        override fun surfaceChanged(holder: SurfaceHolder?, format: Int, width: Int, height: Int) {}
-        override fun surfaceDestroyed(holder: SurfaceHolder?) {}
-
-        override fun surfaceCreated(holder: SurfaceHolder?) {
-            startCamera()
-        }
     }
 
     //************ Constants *********//
