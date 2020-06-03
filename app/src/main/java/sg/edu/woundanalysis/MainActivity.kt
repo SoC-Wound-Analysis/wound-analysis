@@ -4,7 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Resources
-import android.graphics.Camera
+import android.graphics.Canvas
 import android.graphics.ImageFormat
 import android.hardware.camera2.*
 import android.media.ImageReader
@@ -21,6 +21,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import kotlinx.android.synthetic.main.activity_main.*
 import java.io.File
+import java.lang.Exception
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -29,7 +30,8 @@ class MainActivity : AppCompatActivity() {
     private val cameraManager by lazy { getSystemService(Context.CAMERA_SERVICE) as CameraManager }
     private lateinit var outputDirectory: File
     private lateinit var cameraExecutor: ExecutorService
-    private lateinit var imageReader : ImageReader
+    private lateinit var imageReader: ImageReader
+    private lateinit var camera : CameraDevice
 
     // Camera thread
     private val cameraThread = HandlerThread("CameraThread").apply { start() }
@@ -39,91 +41,11 @@ class MainActivity : AppCompatActivity() {
     private val imageReaderThread = HandlerThread("imageReaderThread").apply { start() }
     private val imageReaderHandler = Handler(imageReaderThread.looper)
 
-    val openCameraCallback = object : CameraDevice.StateCallback() {
 
-        // Unused states
-        override fun onDisconnected(camera: CameraDevice) {}
-        override fun onError(camera: CameraDevice, error: Int) {}
-
-        override fun onOpened(cameraDevice: CameraDevice) {
-            val cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraDevice.id)
-
-            val streamConfigMap = cameraCharacteristics[CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP]!!
-
-            /*
-            if (ImageFormat.DEPTH_JPEG in streamConfigMap!!.outputFormats) {
-                Log.d(TAG, "JPEG supported")
-            } else {
-                Log.d(TAG, "JPEG not supported")
-            }
-             */
-
-            val previewSize = streamConfigMap
-                    .getOutputSizes(ImageFormat.JPEG)!!
-                    .filter { it.width < Resources.getSystem().displayMetrics.widthPixels &&
-                            it.height < Resources.getSystem().displayMetrics.heightPixels }
-                    .maxBy { it.height * it.width }!!
-
-            /*
-            streamConfigMap.getOutputSizes(ImageFormat.JPEG)!!
-                    .forEach { Log.d(TAG, "Width: ${it.width}, Height: ${it.height}") }
-
-             */
-
-            // Choose the correct width and height based on orientation
-            val displayRotation = windowManager.defaultDisplay.rotation
-            val swappedDimensions = areDimensionsSwapped(displayRotation, cameraCharacteristics)
-            val rotatedPreviewHeight = if (swappedDimensions) previewSize.width else previewSize.height
-            val rotatedPreviewWidth = if (swappedDimensions) previewSize.height else previewSize.width
-            surfaceView.holder.setFixedSize(rotatedPreviewWidth, rotatedPreviewHeight)
-
-            // Logs width and height
-            Log.d(TAG, "Width: $rotatedPreviewWidth, Height: $rotatedPreviewHeight")
-
-            imageReader = ImageReader.newInstance(rotatedPreviewWidth, rotatedPreviewHeight, ImageFormat.JPEG, 1)
-
-            // Targets for the CaptureSession
-            val targets = listOf(surfaceView.holder.surface, imageReader.surface)
-
-            // I dunno where to put this part
-            val previewSurface = surfaceView.holder.surface
-
-            val captureCallback = object : CameraCaptureSession.StateCallback() {
-                override fun onConfigureFailed(session: CameraCaptureSession) {}
-
-                override fun onConfigured(session: CameraCaptureSession) {
-                    val previewRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
-                        addTarget(previewSurface)
-                    }
-
-                    session.setRepeatingRequest(
-                            previewRequestBuilder.build(),
-                          object : CameraCaptureSession.CaptureCallback() {},
-                           Handler { true }
-                    )
-                }
-            }
-
-            cameraDevice.createCaptureSession(targets,
-                    captureCallback, Handler { true })
-        }
-
-    }
-
-    val surfaceReadyCallback = object : SurfaceHolder.Callback {
-
-        // Unused listeners
-        override fun surfaceChanged(holder: SurfaceHolder?, format: Int, width: Int, height: Int) {}
-        override fun surfaceDestroyed(holder: SurfaceHolder?) {}
-
-        override fun surfaceCreated(holder: SurfaceHolder?) {
-            startCamera()
-        }
-    }
-
-
+    //***************** Permissions ************//
     /**
      * Handles Permission results.
+     * pen/open
      */
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
@@ -169,13 +91,9 @@ class MainActivity : AppCompatActivity() {
         // Hardcoded RGC camera ID
         val rbgCameraID = "0"
 
-        cameraManager.openCamera(rbgCameraID, openCameraCallback, cameraThreadHandler)
+        cameraManager.openCamera(tofCameraId, openCameraCallback, cameraThreadHandler)
 
-        imageReader.setOnImageAvailableListener({ reader ->
-            val image = reader.acquireNextImage()
-            Log.d(TAG, "Image available in queue: ${image.timestamp}")
-            val depthMask = TofUtil.getDepthMask(image)
-        }, imageReaderHandler)
+
     }
 
     /**
@@ -202,8 +120,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     //helper function to get ID of TOF Camera
-    internal fun getTofCamera(): String {
-        val cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+    private fun getTofCamera(): String {
         for (camera in cameraManager.cameraIdList) {
             val chars: CameraCharacteristics = cameraManager.getCameraCharacteristics(camera)
             val capabilities = chars.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES)
@@ -257,6 +174,106 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    override fun onStop() {
+        super.onStop()
+        try {
+            camera.close()
+        } catch (e: Throwable) {
+            Log.d(TAG, "Error while closing camera")
+        }
+    }
+
+    //********* Callbacks *********//
+    val openCameraCallback = object : CameraDevice.StateCallback() {
+
+        // Unused states
+        override fun onDisconnected(camera: CameraDevice) {}
+        override fun onError(camera: CameraDevice, error: Int) {}
+
+        override fun onOpened(cameraDevice: CameraDevice) {
+            val cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraDevice.id)
+            val streamConfigMap = cameraCharacteristics[CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP]!!
+
+            val previewSize = streamConfigMap
+                    .getOutputSizes(ImageFormat.DEPTH16)!!
+                    .filter {
+                        it.width < Resources.getSystem().displayMetrics.widthPixels &&
+                                it.height < Resources.getSystem().displayMetrics.heightPixels
+                    }
+                    .maxBy { it.height * it.width }!!
+
+            /*
+            streamConfigMap.getOutputSizes(ImageFormat.JPEG)!!
+                    .forEach { Log.d(TAG, "Width: ${it.width}, Height: ${it.height}") }
+             */
+
+
+            /*
+            // Choose the correct width and height based on orientation
+            val displayRotation = windowManager.defaultDisplay.rotation
+            val swappedDimensions = areDimensionsSwapped(displayRotation, cameraCharacteristics)
+            val rotatedPreviewHeight = if (swappedDimensions) previewSize.width else previewSize.height
+            val rotatedPreviewWidth = if (swappedDimensions) previewSize.height else previewSize.width
+            surfaceView.holder.setFixedSize(rotatedPreviewWidth, rotatedPreviewHeight)
+            // Logs width and height
+            Log.d(TAG, "Width: $rotatedPreviewWidth, Height: $rotatedPreviewHeight")
+             */
+
+            imageReader = ImageReader.newInstance(WIDTH, HEIGHT, ImageFormat.DEPTH16, 1)
+
+            imageReader.setOnImageAvailableListener({ reader ->
+                val image = reader.acquireNextImage()
+                Log.d(TAG, "Image available in queue: ${image.timestamp}")
+                val depthMask = getDepthMask(image)
+                val bitmap = convertToRGBBitmap(depthMask)
+                val canvas: Canvas = textureView.lockCanvas()
+                canvas.drawBitmap(bitmap, defaultBitMapTransform(textureView), null)
+                textureView.unlockCanvasAndPost(canvas)
+
+                image.close()
+            }, cameraThreadHandler)
+
+            // Targets for the CaptureSession
+            //val targets = listOf(surfaceView.holder.surface, imageReader.surface)
+            val targets = listOf(imageReader.surface)
+
+            // I dunno where to put this part
+            val previewSurface = surfaceView.holder.surface
+
+            val captureCallback = object : CameraCaptureSession.StateCallback() {
+                override fun onConfigureFailed(session: CameraCaptureSession) {}
+
+                override fun onConfigured(session: CameraCaptureSession) {
+                    val previewRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+                        addTarget(previewSurface)
+                    }
+
+                    session.setRepeatingRequest(
+                            previewRequestBuilder.build(),
+                            object : CameraCaptureSession.CaptureCallback() {},
+                            Handler { true }
+                    )
+                }
+            }
+
+            cameraDevice.createCaptureSession(targets,
+                    captureCallback, Handler { true })
+        }
+
+    }
+
+    val surfaceReadyCallback = object : SurfaceHolder.Callback {
+
+        // Unused listeners
+        override fun surfaceChanged(holder: SurfaceHolder?, format: Int, width: Int, height: Int) {}
+        override fun surfaceDestroyed(holder: SurfaceHolder?) {}
+
+        override fun surfaceCreated(holder: SurfaceHolder?) {
+            startCamera()
+        }
+    }
+
+    //************ Constants *********//
     companion object {
         private val PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
         private const val REQUEST_CODE_PERMISSIONS = 10
