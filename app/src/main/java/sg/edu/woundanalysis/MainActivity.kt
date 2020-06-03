@@ -13,7 +13,6 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
 import android.view.Surface
-import android.view.SurfaceHolder
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -21,7 +20,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import kotlinx.android.synthetic.main.activity_main.*
 import java.io.File
-import java.lang.Exception
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -79,6 +77,7 @@ class MainActivity : AppCompatActivity() {
      * Initializes the camera device with camera2 API.
      */
     private fun startCamera() {
+        Log.d(TAG, "Entering startCamera()")
         val cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
 
         // For unknown reasons, permission checks are required within the function despite being handled in onCreate()
@@ -91,7 +90,7 @@ class MainActivity : AppCompatActivity() {
         // Hardcoded RGC camera ID
         val rbgCameraID = "0"
 
-        cameraManager.openCamera(tofCameraId, openCameraCallback, cameraThreadHandler)
+        cameraManager.openCamera(tofCameraId, openCameraCallback, Handler( {true} ))
 
 
     }
@@ -166,22 +165,15 @@ class MainActivity : AppCompatActivity() {
         // Listener for take photo button
         btn_capture.setOnClickListener(capturePhoto())
 
+        startCamera()
+
         outputDirectory = getOutputDirectory()
         cameraExecutor = Executors.newSingleThreadExecutor()
 
     }
 
-    override fun onStop() {
-        super.onStop()
-        try {
-            camera.close()
-        } catch (e: Throwable) {
-            Log.d(TAG, "Error while closing camera")
-        }
-    }
-
     //********* Callbacks *********//
-    val openCameraCallback = object : CameraDevice.StateCallback() {
+    private val openCameraCallback = object : CameraDevice.StateCallback() {
 
         // Unused states
         override fun onDisconnected(camera: CameraDevice) {}
@@ -198,8 +190,9 @@ class MainActivity : AppCompatActivity() {
                                 it.height < Resources.getSystem().displayMetrics.heightPixels
                     }
                     .maxBy { it.height * it.width }!!
+            Log.d(TAG, "Height : ${previewSize.height}, Width: ${previewSize.width}")
 
-            imageReader = ImageReader.newInstance(WIDTH, HEIGHT, ImageFormat.DEPTH16, 1)
+            imageReader = ImageReader.newInstance(WIDTH, HEIGHT, ImageFormat.DEPTH16, 2)
 
             imageReader.setOnImageAvailableListener({ reader ->
                 val image = reader.acquireNextImage()
@@ -211,25 +204,31 @@ class MainActivity : AppCompatActivity() {
                 textureView.unlockCanvasAndPost(canvas)
 
                 image.close()
-            }, cameraThreadHandler)
+            }, Handler( {true}))
 
             // Targets for the CaptureSession
-            //val targets = listOf(surfaceView.holder.surface, imageReader.surface)
             val targets = listOf(imageReader.surface)
+            Log.d(TAG, "flag")
 
             val captureCallback = object : CameraCaptureSession.StateCallback() {
-                override fun onConfigureFailed(session: CameraCaptureSession) {}
+                override fun onConfigureFailed(session: CameraCaptureSession) {
+                    Log.d(TAG, "Camera Configured failed")
+                }
 
                 override fun onConfigured(session: CameraCaptureSession) {
-                    val previewRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
-                    }
+                    Log.d(TAG, "Configured successfully")
+                    val previewRequestBuilder = cameraDevice
+                            .createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+                            .apply {addTarget(imageReader.surface)}
 
                     session.setRepeatingRequest(
                             previewRequestBuilder.build(),
                             object : CameraCaptureSession.CaptureCallback() {},
                             Handler { true }
                     )
+
                 }
+
             }
 
             cameraDevice.createCaptureSession(targets,
