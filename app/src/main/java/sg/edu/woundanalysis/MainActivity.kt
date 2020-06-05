@@ -224,7 +224,7 @@ class MainActivity : AppCompatActivity() {
                     session.setRepeatingRequest(
                             previewRequestBuilder.build(),
                             object : CameraCaptureSession.CaptureCallback() {},
-                            Handler { true }
+                            cameraThreadHandler
                     )
 
                 }
