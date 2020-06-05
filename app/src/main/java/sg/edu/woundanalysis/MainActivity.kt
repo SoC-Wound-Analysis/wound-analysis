@@ -90,7 +90,7 @@ class MainActivity : AppCompatActivity() {
         // Hardcoded RGC camera ID
         val rbgCameraID = "0"
 
-        cameraManager.openCamera(tofCameraId, openCameraCallback, Handler( {true} ))
+        cameraManager.openCamera(tofCameraId, openCameraCallback, cameraThreadHandler)
 
 
     }
@@ -204,7 +204,7 @@ class MainActivity : AppCompatActivity() {
                 textureView.unlockCanvasAndPost(canvas)
 
                 image.close()
-            }, Handler( {true}))
+            }, imageReaderHandler)
 
             // Targets for the CaptureSession
             val targets = listOf(imageReader.surface)
@@ -232,7 +232,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             cameraDevice.createCaptureSession(targets,
-                    captureCallback, Handler { true })
+                    captureCallback, cameraThreadHandler)
         }
 
     }
