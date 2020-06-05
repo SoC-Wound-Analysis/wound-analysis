@@ -196,8 +196,9 @@ class MainActivity : AppCompatActivity() {
 
             imageReader.setOnImageAvailableListener({ reader ->
                 val image = reader.acquireNextImage()
-                Log.d(TAG, "Image available in queue: ${image.timestamp}")
-                val depthMask = getDepthMask(image)
+                val depthMask = getDepthArray(image)
+                Log.d(TAG, "Image available in queue: ${image.timestamp}, " +
+                        "Center distance: ${getCenterDistance(depthMask)}bits")
                 val bitmap = convertToRGBBitmap(depthMask)
                 val canvas: Canvas = textureView.lockCanvas()
                 canvas.drawBitmap(bitmap, defaultBitMapTransform(textureView), null)

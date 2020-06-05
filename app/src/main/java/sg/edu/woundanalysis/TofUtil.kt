@@ -20,27 +20,27 @@ private var RANGE_MIN = Int.MIN_VALUE
 /**
  * Generates a depth array from DEPTH16 image.
  */
-fun getDepthMask(image: Image): Array<Int> {
+fun getDepthArray(image: Image): Array<Int> {
     Log.d(TAG, "DEPTH width: ${image.width}, height: ${image.height}")
     val shortDepthBuffer: ShortBuffer =
             image.planes[0].buffer.asShortBuffer()
 
-    val mask: Array<Int> = Array(WIDTH * HEIGHT, {it} )
-    for (y in 0..HEIGHT-1) {
-        for (x in 0..WIDTH-1) {
+    val depthArray : Array<Int> = Array(WIDTH * HEIGHT, {it} )
+    for (y in 0 until HEIGHT) {
+        for (x in 0 until WIDTH) {
             val index: Int = y * WIDTH + x
             val depthSample: Short = shortDepthBuffer.get(index)
-            val newValue = extractRange(depthSample, 0.1f)
-            mask[index] = newValue
+            val newValue = extractDepth(depthSample, 0.1f)
+            depthArray[index] = newValue
         }
     }
-    return mask
+    return depthArray
 }
 
 /**
  * Extracts the value encoded in each of the data point in DEPTH16 image.
  */
-fun extractRange(sample: Short, confidenceFilter: Float): Int {
+fun extractDepth(sample: Short, confidenceFilter: Float): Int {
     val depthRange = sample.toInt() and 0x1FFF
     val depthConfidence: Short = ((sample.toInt() shr 13) and 0x7).toShort()
     val depthPercentage: Float = if (depthConfidence.equals(0)) 1.toFloat()
@@ -49,7 +49,8 @@ fun extractRange(sample: Short, confidenceFilter: Float): Int {
     RANGE_MAX = max(depthRange, RANGE_MAX)
     RANGE_MIN = min(depthRange, RANGE_MIN)
 
-    return if (depthPercentage > confidenceFilter) depthRange else 0
+    //return if (depthPercentage > confidenceFilter) depthRange else 0
+    return depthRange
 }
 
 /**
@@ -89,5 +90,23 @@ fun defaultBitMapTransform(view : TextureView) : Matrix {
     matrix.postRotate(90.toFloat(), centerX.toFloat(), centerY.toFloat())
 
     return matrix
+}
+
+/**
+ * Calculates the average distance(per unit of DEPTH16's bit value) of the center of the image.
+ */
+fun getCenterDistance(depthArray : Array<Int>) : Double {
+    val startingWidth = WIDTH / 2 - 2
+    val startingHeight = HEIGHT / 2 - 2
+    var distanceSum = 0;
+    var count = 0
+    for (y in startingHeight..startingHeight + 2)
+        for (x in startingWidth..startingWidth + 2)
+            distanceSum += depthArray[y * WIDTH + x]
+            count += 1
+
+    Log.d(TAG, "$count")
+    return distanceSum.toDouble() / count
+
 }
 
