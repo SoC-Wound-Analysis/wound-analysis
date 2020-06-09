@@ -91,8 +91,6 @@ class MainActivity : AppCompatActivity() {
         val rbgCameraID = "0"
 
         cameraManager.openCamera(tofCameraId, openCameraCallback, cameraThreadHandler)
-
-
     }
 
     /**
@@ -197,20 +195,22 @@ class MainActivity : AppCompatActivity() {
             imageReader.setOnImageAvailableListener({ reader ->
                 val image = reader.acquireNextImage()
                 val depthMask = getDepthArray(image)
+
+                // All the testing logs
+                val testDist = 100
                 Log.d(TAG, "Image available in queue: ${image.timestamp}, " +
                         "Center distance: ${getCenterDistance(depthMask)}bits")
+                Log.d(TAG, "FOV at ${testDist}mm: ${getFov(depthMask, testDist)}")
+
                 val bitmap = convertToRGBBitmap(depthMask)
                 val canvas: Canvas = textureView.lockCanvas()
                 canvas.drawBitmap(bitmap, defaultBitMapTransform(textureView), null)
                 textureView.unlockCanvasAndPost(canvas)
-
                 image.close()
             }, imageReaderHandler)
 
             // Targets for the CaptureSession
             val targets = listOf(imageReader.surface)
-            Log.d(TAG, "flag")
-
             val captureCallback = object : CameraCaptureSession.StateCallback() {
                 override fun onConfigureFailed(session: CameraCaptureSession) {
                     Log.d(TAG, "Camera Configured failed")

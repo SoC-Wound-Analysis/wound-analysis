@@ -9,13 +9,22 @@ import android.media.Image
 import android.util.Log
 import android.view.TextureView
 import java.nio.ShortBuffer
-import kotlin.math.max
-import kotlin.math.min
+import kotlin.math.*
 
+/**
+ * Conversion of the distance encoded in a depth16 image from raw units to millimeter.
+ */
+internal var RAW_DISTANCE_TO_MM : Double = 1.0
+
+/**
+ * The dimensions of the ToF Camera input.
+ */
 internal var WIDTH : Int = 320
 internal var HEIGHT : Int = 240
+
 private var RANGE_MAX = Int.MAX_VALUE
 private var RANGE_MIN = Int.MIN_VALUE
+
 
 /**
  * Generates a depth array from DEPTH16 image.
@@ -96,17 +105,37 @@ fun defaultBitMapTransform(view : TextureView) : Matrix {
  * Calculates the average distance(per unit of DEPTH16's bit value) of the center of the image.
  */
 fun getCenterDistance(depthArray : Array<Int>) : Double {
-    val startingWidth = WIDTH / 2 - 2
-    val startingHeight = HEIGHT / 2 - 2
+    val startingWidth = WIDTH / 2 - 1
+    val startingHeight = HEIGHT / 2 - 1
     var distanceSum = 0;
     var count = 0
-    for (y in startingHeight..startingHeight + 2)
-        for (x in startingWidth..startingWidth + 2)
+    for (y in startingHeight..startingHeight + 1)
+        for (x in startingWidth..startingWidth + 1)
             distanceSum += depthArray[y * WIDTH + x]
             count += 1
 
     Log.d(TAG, "$count")
     return distanceSum.toDouble() / count
 
+}
+
+fun getFov(depthArray: Array<Int>, focalLen : Int) : Double {
+    val leftPixelHeight = HEIGHT / 2
+    val leftPixelWidth = 0
+    val rightPixelHeight = HEIGHT / 2
+    val rightPixelWidth = WIDTH - 1
+    val leftDist = convertToMm(depthArray[leftPixelHeight * WIDTH + leftPixelWidth])
+    val rightDist = convertToMm(depthArray[rightPixelHeight * WIDTH + rightPixelHeight])
+
+    // Cosine rule to find the angle
+    val nominator = focalLen.toDouble().pow(2)
+    - leftDist.toDouble().pow(2)
+    - rightDist.toDouble().pow(2)
+    val denominator = 2 * leftDist * rightDist
+    return acos(nominator / denominator)
+}
+
+fun convertToMm(rawValue : Int) : Double {
+    return rawValue * RAW_DISTANCE_TO_MM;
 }
 
