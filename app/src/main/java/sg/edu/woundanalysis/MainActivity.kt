@@ -138,11 +138,6 @@ class MainActivity : AppCompatActivity() {
             val sensorSize = chars.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)
             Log.d(TAG, "Sensor size: " + sensorSize)
             val focalLengths = chars.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
-            if (focalLengths!!.size > 0) {
-                val focalLength = focalLengths[0];
-                val fov = 2 * Math.atan((sensorSize!!.width / (2 * focalLength).toDouble()))
-                Log.d(TAG, "Calculated FoC: " + fov)
-            }
             Log.d(TAG, "TOF Camera ID: " + camera)
             return camera
         }
@@ -188,7 +183,7 @@ class MainActivity : AppCompatActivity() {
                                 it.height < Resources.getSystem().displayMetrics.heightPixels
                     }
                     .maxBy { it.height * it.width }!!
-            Log.d(TAG, "Height : ${previewSize.height}, Width: ${previewSize.width}")
+            //Log.d(TAG, "Height : ${previewSize.height}, Width: ${previewSize.width}")
 
             imageReader = ImageReader.newInstance(WIDTH, HEIGHT, ImageFormat.DEPTH16, 2)
 
@@ -197,10 +192,10 @@ class MainActivity : AppCompatActivity() {
                 val depthMask = getDepthArray(image)
 
                 // All the testing logs
-                val testDist = 100
+                val testDist = 180
                 Log.d(TAG, "Image available in queue: ${image.timestamp}, " +
-                        "Center distance: ${getCenterDistance(depthMask)}bits")
-                Log.d(TAG, "FOV at ${testDist}mm: ${getFov(depthMask, testDist)}")
+                        "Distance: ${getCenterDistance(depthMask)}mm")
+                Log.d(TAG, "FOV for object of width ${testDist}mm: ${getFov(depthMask, testDist)}")
 
                 val bitmap = convertToRGBBitmap(depthMask)
                 val canvas: Canvas = textureView.lockCanvas()
@@ -242,7 +237,6 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private val PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
         private const val REQUEST_CODE_PERMISSIONS = 10
-        private const val TAG = "Wound_Analysis"
         private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
     }
 

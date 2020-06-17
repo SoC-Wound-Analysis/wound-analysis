@@ -1,6 +1,5 @@
 package sg.edu.woundanalysis
 
-import android.content.ContentValues.TAG
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Matrix
@@ -12,18 +11,16 @@ import java.nio.ShortBuffer
 import kotlin.math.*
 
 /**
- * Conversion of the distance encoded in a depth16 image from raw units to millimeter.
- */
-internal var RAW_DISTANCE_TO_MM : Double = 1.0
-
-/**
  * The dimensions of the ToF Camera input.
  */
 internal var WIDTH : Int = 320
 internal var HEIGHT : Int = 240
+internal const val TAG = "Wound_Analysis"
 
 private var RANGE_MAX = Int.MAX_VALUE
 private var RANGE_MIN = Int.MIN_VALUE
+private const val MAX_DIST = 200
+
 
 
 /**
@@ -65,13 +62,13 @@ fun extractDepth(sample: Short, confidenceFilter: Float): Int {
 /**
  * Normalizes a value to be within 8bit.
  */
-fun normalizeRange(range: Int): Int {
-    var normalized: Float = range.toFloat() - RANGE_MIN
-    normalized = Math.max(RANGE_MIN.toFloat(), normalized)
-    normalized = Math.min(RANGE_MAX.toFloat(), normalized)
-    normalized -= RANGE_MIN
-    normalized = normalized / (RANGE_MAX - RANGE_MIN) * 255
-    return normalized.toInt()
+fun normalizeRange(originalDist: Int): Int {
+
+    // Filter out data points beyond the magnitude of our interest
+    if (originalDist > MAX_DIST)
+        return 255
+
+    return ((originalDist / MAX_DIST.toFloat()) * 255).toInt()
 }
 
 /**
@@ -82,6 +79,8 @@ fun convertToRGBBitmap(mask: Array<Int>): Bitmap {
     for (y in 0 until HEIGHT) {
         for (x in 0 until WIDTH) {
             val index = y * WIDTH + x
+            //val normalizedDist = normalizeRange(mask[index])
+            //bitmap.setPixel(x, y, Color.argb(255, 0, 255 - normalizedDist, 0))
             bitmap.setPixel(x, y, Color.argb(255, 0, mask[index], 0))
         }
     }
@@ -105,37 +104,30 @@ fun defaultBitMapTransform(view : TextureView) : Matrix {
  * Calculates the average distance(per unit of DEPTH16's bit value) of the center of the image.
  */
 fun getCenterDistance(depthArray : Array<Int>) : Double {
-    val startingWidth = WIDTH / 2 - 1
-    val startingHeight = HEIGHT / 2 - 1
-    var distanceSum = 0;
-    var count = 0
-    for (y in startingHeight..startingHeight + 1)
-        for (x in startingWidth..startingWidth + 1)
-            distanceSum += depthArray[y * WIDTH + x]
-            count += 1
-
-    Log.d(TAG, "$count")
-    return distanceSum.toDouble() / count
+    val startingWidth = WIDTH / 2
+    val startingHeight = HEIGHT / 2
+    val distanceSum = depthArray[startingHeight * WIDTH + startingWidth]
+    return distanceSum.toDouble()
 
 }
 
-fun getFov(depthArray: Array<Int>, focalLen : Int) : Double {
+fun getFov(depthArray: Array<Int>, objWidth : Int) : Double {
     val leftPixelHeight = HEIGHT / 2
     val leftPixelWidth = 0
     val rightPixelHeight = HEIGHT / 2
     val rightPixelWidth = WIDTH - 1
-    val leftDist = convertToMm(depthArray[leftPixelHeight * WIDTH + leftPixelWidth])
-    val rightDist = convertToMm(depthArray[rightPixelHeight * WIDTH + rightPixelHeight])
+    val leftDist = depthArray[leftPixelHeight * WIDTH + leftPixelWidth]
+    val rightDist = depthArray[rightPixelHeight * WIDTH + rightPixelWidth]
+    Log.d(TAG, "Left Distance: ${leftDist}mm")
+    Log.d(TAG, "Right distance: ${rightDist}mm")
 
     // Cosine rule to find the angle
-    val nominator = focalLen.toDouble().pow(2)
-    - leftDist.toDouble().pow(2)
-    - rightDist.toDouble().pow(2)
+    // l^2 + r^2 - 2lrcos(x) = h^2
+    val nominator = leftDist.toDouble().pow(2)
+    + rightDist.toDouble().pow(2)
+    - objWidth.toDouble().pow(2)
     val denominator = 2 * leftDist * rightDist
-    return acos(nominator / denominator)
-}
+    val fovInRadian = acos(nominator / denominator)
 
-fun convertToMm(rawValue : Int) : Double {
-    return rawValue * RAW_DISTANCE_TO_MM;
+    return fovInRadian * 180 / Math.PI
 }
-
