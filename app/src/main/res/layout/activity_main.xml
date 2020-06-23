@@ -20,15 +20,21 @@
 
     <TextureView
         android:id="@+id/textureView"
-        android:layout_width="720px"
-        android:layout_height="960px"
-        android:layout_marginTop="108dp"
+        android:layout_width="329dp"
+        android:layout_height="246dp"
+        android:layout_marginTop="68dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/appbar" />
+
+    <SurfaceView
+        android:id="@+id/surfaceView3"
+        android:layout_width="240dp"
+        android:layout_height="240dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.496"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/appbar"
-        app:layout_constraintVertical_bias="0.089" />
+        app:layout_constraintTop_toBottomOf="@+id/textureView" />
 
     <Button
             android:text="Capture"

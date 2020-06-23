@@ -13,6 +13,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
 import android.view.Surface
+import android.view.SurfaceHolder
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -180,7 +181,16 @@ class MainActivity : AppCompatActivity() {
         // Listener for take photo button
         btn_capture.setOnClickListener(capturePhoto())
 
-        startCamera()
+        surfaceView3!!.holder!!.addCallback(object : SurfaceHolder.Callback {
+            override fun surfaceChanged(p0: SurfaceHolder?, p1: Int, p2: Int, p3: Int) {
+            }
+            override fun surfaceDestroyed(p0: SurfaceHolder?) {
+            }
+
+            override fun surfaceCreated(p0: SurfaceHolder?) {
+                startCamera()
+            }
+        })
 
         outputDirectory = getOutputDirectory()
         cameraExecutor = Executors.newSingleThreadExecutor()
@@ -197,11 +207,12 @@ class MainActivity : AppCompatActivity() {
             val cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraDevice.id)
             val streamConfigMap = cameraCharacteristics[CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP]!!
 
-            streamConfigMap.getOutputSizes(ImageFormat.RAW12)!!.forEach {
+            streamConfigMap.getOutputSizes(ImageFormat.RAW_SENSOR)!!.forEach {
                 Log.d(TAG, "RGB camera size : ${it.width} * ${it.height}")
             }
+
             // Targets for the CaptureSession
-            val targets = listOf(imageReader.surface)
+            val targets = listOf(surfaceView3.holder.surface)
             val captureCallback = object : CameraCaptureSession.StateCallback() {
                 override fun onConfigureFailed(session: CameraCaptureSession) {
                     Log.d(TAG, "RGB Camera Configured failed")
@@ -211,7 +222,7 @@ class MainActivity : AppCompatActivity() {
                     Log.d(TAG, "RGB Configured successfully")
                     val previewRequestBuilder = cameraDevice
                             .createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-                            .apply {addTarget(imageReader.surface)}
+                            .apply {addTarget(surfaceView3.holder.surface)}
 
                     session.setRepeatingRequest(
                             previewRequestBuilder.build(),
