@@ -19,15 +19,14 @@ internal const val TAG = "Wound_Analysis"
 
 private var RANGE_MAX = Int.MAX_VALUE
 private var RANGE_MIN = Int.MIN_VALUE
-private const val MAX_DIST = 200
-
-
+private const val MAX_DIST = 8192
 
 /**
  * Generates a depth array from DEPTH16 image.
+ *
+ * @return a 1D array conraining values in terms of millimeters.
  */
 fun getDepthArray(image: Image): Array<Int> {
-    Log.d(TAG, "DEPTH width: ${image.width}, height: ${image.height}")
     val shortDepthBuffer: ShortBuffer =
             image.planes[0].buffer.asShortBuffer()
 
@@ -45,6 +44,8 @@ fun getDepthArray(image: Image): Array<Int> {
 
 /**
  * Extracts the value encoded in each of the data point in DEPTH16 image.
+ *
+ * @return a value between 0 and 2^13 millimeters.
  */
 fun extractDepth(sample: Short, confidenceFilter: Float): Int {
     val depthRange = sample.toInt() and 0x1FFF
@@ -61,6 +62,8 @@ fun extractDepth(sample: Short, confidenceFilter: Float): Int {
 
 /**
  * Normalizes a value to be within 8bit.
+ *
+ * @return a value between 0 and 255(inclusive).
  */
 fun normalizeRange(originalDist: Int): Int {
 
@@ -118,8 +121,8 @@ fun getFov(depthArray: Array<Int>, objWidth : Int) : Double {
     val rightPixelWidth = WIDTH - 1
     val leftDist = depthArray[leftPixelHeight * WIDTH + leftPixelWidth]
     val rightDist = depthArray[rightPixelHeight * WIDTH + rightPixelWidth]
-    Log.d(TAG, "Left Distance: ${leftDist}mm")
-    Log.d(TAG, "Right distance: ${rightDist}mm")
+   // Log.d(TAG, "Left Distance: ${leftDist}mm")
+    //Log.d(TAG, "Right distance: ${rightDist}mm")
 
     // Cosine rule to find the angle
     // l^2 + r^2 - 2lrcos(x) = h^2

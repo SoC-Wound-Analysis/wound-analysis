@@ -31,11 +31,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var imageReader: ImageReader
     private lateinit var camera : CameraDevice
 
-    // Camera thread
-    private val cameraThread = HandlerThread("CameraThread").apply { start() }
-    private val cameraThreadHandler = Handler(cameraThread.looper)
-
-    // Image Reader thread
+    // Threads
+    private val tofThread = HandlerThread("TOFThread").apply { start() }
+    private val tofThreadHandler = Handler(tofThread.looper)
+    private val rgbThread = HandlerThread("RGBThread").apply { start() }
+    private val rgbThreadHandler = Handler(rgbThread.looper)
     private val imageReaderThread = HandlerThread("imageReaderThread").apply { start() }
     private val imageReaderHandler = Handler(imageReaderThread.looper)
 
@@ -78,7 +78,6 @@ class MainActivity : AppCompatActivity() {
      */
     private fun startCamera() {
         Log.d(TAG, "Entering startCamera()")
-        val cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
 
         // For unknown reasons, permission checks are required within the function despite being handled in onCreate()
         if (ActivityCompat.checkSelfPermission(baseContext,
@@ -88,9 +87,10 @@ class MainActivity : AppCompatActivity() {
 
         val tofCameraId: String = getTofCamera()
         // Hardcoded RGC camera ID
-        val rbgCameraID = "0"
+        val rgbCameraID = getRgbCamera()
 
-        cameraManager.openCamera(tofCameraId, openCameraCallback, cameraThreadHandler)
+        cameraManager.openCamera(tofCameraId, openTofCameraCallback, tofThreadHandler)
+        cameraManager.openCamera(rgbCameraID, openRgbCameraCallback, rgbThreadHandler)
     }
 
     /**
@@ -136,9 +136,31 @@ class MainActivity : AppCompatActivity() {
 
             // Logs TOF camera's characteristics
             val sensorSize = chars.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)
-            Log.d(TAG, "Sensor size: " + sensorSize)
+            //Log.d(TAG, "Sensor size: " + sensorSize)
             val focalLengths = chars.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
-            Log.d(TAG, "TOF Camera ID: " + camera)
+            //Log.d(TAG, "TOF Camera ID: " + camera)
+            return camera
+        }
+
+        Log.d(TAG, "no camera found")
+        return "-1"
+    }
+
+    //helper function to get ID of TOF Camera
+    private fun getRgbCamera(): String {
+        for (camera in cameraManager.cameraIdList) {
+            val chars: CameraCharacteristics = cameraManager.getCameraCharacteristics(camera)
+            val capabilities = chars.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES)!!
+            var supportsRaw: Boolean = false
+            supportsRaw = CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_RAW in capabilities
+
+            // Blocker statement if camera is not TOF
+            if (!supportsRaw) {
+                continue
+            }
+
+            // Logs TOF camera's characteristics
+            Log.d(TAG, "RGB Camera ID: " + camera)
             return camera
         }
 
@@ -166,7 +188,48 @@ class MainActivity : AppCompatActivity() {
     }
 
     //********* Callbacks *********//
-    private val openCameraCallback = object : CameraDevice.StateCallback() {
+    private val openRgbCameraCallback = object : CameraDevice.StateCallback() {
+        // Unused states
+        override fun onDisconnected(camera: CameraDevice) {}
+        override fun onError(camera: CameraDevice, error: Int) {}
+
+        override fun onOpened(cameraDevice: CameraDevice) {
+            val cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraDevice.id)
+            val streamConfigMap = cameraCharacteristics[CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP]!!
+
+            streamConfigMap.getOutputSizes(ImageFormat.RAW12)!!.forEach {
+                Log.d(TAG, "RGB camera size : ${it.width} * ${it.height}")
+            }
+            // Targets for the CaptureSession
+            val targets = listOf(imageReader.surface)
+            val captureCallback = object : CameraCaptureSession.StateCallback() {
+                override fun onConfigureFailed(session: CameraCaptureSession) {
+                    Log.d(TAG, "RGB Camera Configured failed")
+                }
+
+                override fun onConfigured(session: CameraCaptureSession) {
+                    Log.d(TAG, "RGB Configured successfully")
+                    val previewRequestBuilder = cameraDevice
+                            .createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+                            .apply {addTarget(imageReader.surface)}
+
+                    session.setRepeatingRequest(
+                            previewRequestBuilder.build(),
+                            object : CameraCaptureSession.CaptureCallback() {},
+                            rgbThreadHandler
+                    )
+
+                }
+
+            }
+
+            cameraDevice.createCaptureSession(targets,
+                    captureCallback, rgbThreadHandler)
+        }
+
+    }
+
+    private val openTofCameraCallback = object : CameraDevice.StateCallback() {
 
         // Unused states
         override fun onDisconnected(camera: CameraDevice) {}
@@ -192,10 +255,10 @@ class MainActivity : AppCompatActivity() {
                 val depthMask = getDepthArray(image)
 
                 // All the testing logs
-                val testDist = 180
-                Log.d(TAG, "Image available in queue: ${image.timestamp}, " +
-                        "Distance: ${getCenterDistance(depthMask)}mm")
-                Log.d(TAG, "FOV for object of width ${testDist}mm: ${getFov(depthMask, testDist)}")
+                val testDist = 763
+                //Log.d(TAG, "Image available in queue: ${image.timestamp}, " +
+                //       "Distance: ${getCenterDistance(depthMask)}mm")
+                //Log.d(TAG, "FOV for object of width ${testDist}mm: ${getFov(depthMask, testDist)}")
 
                 val bitmap = convertToRGBBitmap(depthMask)
                 val canvas: Canvas = textureView.lockCanvas()
@@ -220,7 +283,7 @@ class MainActivity : AppCompatActivity() {
                     session.setRepeatingRequest(
                             previewRequestBuilder.build(),
                             object : CameraCaptureSession.CaptureCallback() {},
-                            cameraThreadHandler
+                            tofThreadHandler
                     )
 
                 }
@@ -228,7 +291,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             cameraDevice.createCaptureSession(targets,
-                    captureCallback, cameraThreadHandler)
+                    captureCallback, tofThreadHandler)
         }
 
     }
