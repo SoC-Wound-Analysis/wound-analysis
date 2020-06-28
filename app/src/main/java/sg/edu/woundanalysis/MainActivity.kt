@@ -30,7 +30,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var outputDirectory: File
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var imageReader: ImageReader
-    private lateinit var camera : CameraDevice
 
     // Threads
     private val tofThread = HandlerThread("TOFThread").apply { start() }
@@ -257,9 +256,10 @@ class MainActivity : AppCompatActivity() {
                                 it.height < Resources.getSystem().displayMetrics.heightPixels
                     }
                     .maxBy { it.height * it.width }!!
-            //Log.d(TAG, "Height : ${previewSize.height}, Width: ${previewSize.width}")
 
-            imageReader = ImageReader.newInstance(WIDTH, HEIGHT, ImageFormat.DEPTH16, 2)
+            imageReader = ImageReader.newInstance(previewSize.width, previewSize.height, ImageFormat.DEPTH16, 2)
+            WIDTH = previewSize.width
+            HEIGHT = previewSize.height
 
             imageReader.setOnImageAvailableListener({ reader ->
                 val image = reader.acquireNextImage()

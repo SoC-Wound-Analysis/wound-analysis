@@ -20,8 +20,8 @@
 
     <TextureView
         android:id="@+id/textureView"
-        android:layout_width="329dp"
-        android:layout_height="246dp"
+        android:layout_width="363dp"
+        android:layout_height="384dp"
         android:layout_marginTop="68dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

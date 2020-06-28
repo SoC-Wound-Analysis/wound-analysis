@@ -13,8 +13,8 @@ import kotlin.math.*
 /**
  * The dimensions of the ToF Camera input.
  */
-internal var WIDTH : Int = 320
-internal var HEIGHT : Int = 240
+internal var WIDTH : Int = 640
+internal var HEIGHT : Int = 480
 internal const val TAG = "Wound_Analysis"
 
 private var RANGE_MAX = Int.MAX_VALUE
@@ -82,9 +82,9 @@ fun convertToRGBBitmap(mask: Array<Int>): Bitmap {
     for (y in 0 until HEIGHT) {
         for (x in 0 until WIDTH) {
             val index = y * WIDTH + x
-            //val normalizedDist = normalizeRange(mask[index])
             //bitmap.setPixel(x, y, Color.argb(255, 0, 255 - normalizedDist, 0))
-            bitmap.setPixel(x, y, Color.argb(255, 0, mask[index], 0))
+            bitmap.setPixel(x, y,
+                    Color.argb(255, 0, (mask[index]), 0))
         }
     }
     return bitmap
@@ -96,6 +96,7 @@ fun defaultBitMapTransform(view : TextureView) : Matrix {
     val centerY : Int = view.height / 2
 
     val bufferRect : RectF = RectF(0.toFloat(), 0.toFloat(), WIDTH.toFloat(), HEIGHT.toFloat())
+    Log.d(TAG, "defaultBitMapTransform(): view width: ${view.width}, view height: ${view.height}")
     val viewRect : RectF = RectF(0.toFloat(), 0.toFloat(), view.width.toFloat(), view.height.toFloat())
     matrix.setRectToRect(bufferRect, viewRect, Matrix.ScaleToFit.CENTER)
     matrix.postRotate(90.toFloat(), centerX.toFloat(), centerY.toFloat())
@@ -114,7 +115,10 @@ fun getCenterDistance(depthArray : Array<Int>) : Double {
 
 }
 
-fun getFov(depthArray: Array<Int>, objWidth : Int) : Double {
+/**
+ * Calculates the horizontal field of view of the camera.
+ */
+fun getHorFov(depthArray: Array<Int>, objWidth : Int) : Double {
     val leftPixelHeight = HEIGHT / 2
     val leftPixelWidth = 0
     val rightPixelHeight = HEIGHT / 2
