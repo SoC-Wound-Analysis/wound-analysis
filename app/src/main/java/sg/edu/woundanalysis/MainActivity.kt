@@ -86,34 +86,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         val tofCameraId: String = getTofCamera()
-        // Hardcoded RGC camera ID
         val rgbCameraID = getRgbCamera()
 
         cameraManager.openCamera(tofCameraId, openTofCameraCallback, tofThreadHandler)
         cameraManager.openCamera(rgbCameraID, openRgbCameraCallback, rgbThreadHandler)
-    }
-
-    /**
-     * Helper function to determine and adjust the preview according to the orientation of the camera.
-     */
-    private fun areDimensionsSwapped(displayRotation: Int, cameraCharacteristics: CameraCharacteristics): Boolean {
-        var swappedDimensions = false
-        when (displayRotation) {
-            Surface.ROTATION_0, Surface.ROTATION_180 -> {
-                if (cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) == 90 || cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) == 270) {
-                    swappedDimensions = true
-                }
-            }
-            Surface.ROTATION_90, Surface.ROTATION_270 -> {
-                if (cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) == 0 || cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) == 180) {
-                    swappedDimensions = true
-                }
-            }
-            else -> {
-                // Impossible to reach this part of code
-            }
-        }
-        return swappedDimensions
     }
 
     //helper function to get ID of TOF Camera
@@ -181,10 +157,8 @@ class MainActivity : AppCompatActivity() {
         btn_capture.setOnClickListener(capturePhoto())
 
         surfaceView3!!.holder!!.addCallback(object : SurfaceHolder.Callback {
-            override fun surfaceChanged(p0: SurfaceHolder?, p1: Int, p2: Int, p3: Int) {
-            }
-            override fun surfaceDestroyed(p0: SurfaceHolder?) {
-            }
+            override fun surfaceChanged(p0: SurfaceHolder?, p1: Int, p2: Int, p3: Int) {}
+            override fun surfaceDestroyed(p0: SurfaceHolder?) {}
 
             override fun surfaceCreated(p0: SurfaceHolder?) {
                 startCamera()
@@ -198,6 +172,7 @@ class MainActivity : AppCompatActivity() {
 
     //********* Callbacks *********//
     private val openRgbCameraCallback = object : CameraDevice.StateCallback() {
+
         // Unused states
         override fun onDisconnected(camera: CameraDevice) {}
         override fun onError(camera: CameraDevice, error: Int) {}
@@ -258,8 +233,6 @@ class MainActivity : AppCompatActivity() {
                     .maxBy { it.height * it.width }!!
 
             imageReader = ImageReader.newInstance(previewSize.width, previewSize.height, ImageFormat.DEPTH16, 2)
-            WIDTH = previewSize.width
-            HEIGHT = previewSize.height
 
             imageReader.setOnImageAvailableListener({ reader ->
                 val image = reader.acquireNextImage()

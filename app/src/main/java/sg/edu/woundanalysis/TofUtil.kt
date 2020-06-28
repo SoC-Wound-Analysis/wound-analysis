@@ -84,7 +84,7 @@ fun convertToRGBBitmap(mask: Array<Int>): Bitmap {
             val index = y * WIDTH + x
             //bitmap.setPixel(x, y, Color.argb(255, 0, 255 - normalizedDist, 0))
             bitmap.setPixel(x, y,
-                    Color.argb(255, 0, (mask[index]), 0))
+                    Color.argb(255, 0, mask[index], 0))
         }
     }
     return bitmap
@@ -96,7 +96,7 @@ fun defaultBitMapTransform(view : TextureView) : Matrix {
     val centerY : Int = view.height / 2
 
     val bufferRect : RectF = RectF(0.toFloat(), 0.toFloat(), WIDTH.toFloat(), HEIGHT.toFloat())
-    Log.d(TAG, "defaultBitMapTransform(): view width: ${view.width}, view height: ${view.height}")
+    //Log.d(TAG, "defaultBitMapTransform(): view width: ${view.width}, view height: ${view.height}")
     val viewRect : RectF = RectF(0.toFloat(), 0.toFloat(), view.width.toFloat(), view.height.toFloat())
     matrix.setRectToRect(bufferRect, viewRect, Matrix.ScaleToFit.CENTER)
     matrix.postRotate(90.toFloat(), centerX.toFloat(), centerY.toFloat())
@@ -126,6 +126,30 @@ fun getHorFov(depthArray: Array<Int>, objWidth : Int) : Double {
     val leftDist = depthArray[leftPixelHeight * WIDTH + leftPixelWidth]
     val rightDist = depthArray[rightPixelHeight * WIDTH + rightPixelWidth]
    // Log.d(TAG, "Left Distance: ${leftDist}mm")
+    //Log.d(TAG, "Right distance: ${rightDist}mm")
+
+    // Cosine rule to find the angle
+    // l^2 + r^2 - 2lrcos(x) = h^2
+    val nominator = leftDist.toDouble().pow(2)
+    + rightDist.toDouble().pow(2)
+    - objWidth.toDouble().pow(2)
+    val denominator = 2 * leftDist * rightDist
+    val fovInRadian = acos(nominator / denominator)
+
+    return fovInRadian * 180 / Math.PI
+}
+
+/**
+ * Calculates the vertical field of view of the camera.
+ */
+fun getVerFov(depthArray: Array<Int>, objWidth : Int) : Double {
+    val leftPixelHeight = HEIGHT / 2
+    val leftPixelWidth = 0
+    val rightPixelHeight = HEIGHT / 2
+    val rightPixelWidth = WIDTH - 1
+    val leftDist = depthArray[leftPixelHeight * WIDTH + leftPixelWidth]
+    val rightDist = depthArray[rightPixelHeight * WIDTH + rightPixelWidth]
+    // Log.d(TAG, "Left Distance: ${leftDist}mm")
     //Log.d(TAG, "Right distance: ${rightDist}mm")
 
     // Cosine rule to find the angle
