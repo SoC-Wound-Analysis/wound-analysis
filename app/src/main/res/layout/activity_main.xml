@@ -20,16 +20,16 @@
 
     <TextureView
         android:id="@+id/textureView"
-        android:layout_width="363dp"
-        android:layout_height="384dp"
+        android:layout_width="270dp"
+        android:layout_height="217dp"
         android:layout_marginTop="68dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/appbar" />
 
-    <SurfaceView
-        android:id="@+id/surfaceView3"
-        android:layout_width="342dp"
+    <TextureView
+        android:id="@+id/textureView2"
+        android:layout_width="272dp"
         android:layout_height="248dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

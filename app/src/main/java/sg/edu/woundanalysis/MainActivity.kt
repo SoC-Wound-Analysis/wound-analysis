@@ -4,23 +4,27 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Resources
-import android.graphics.Canvas
-import android.graphics.ImageFormat
+import android.graphics.*
 import android.hardware.camera2.*
+import android.media.Image
 import android.media.ImageReader
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
 import android.view.Surface
-import android.view.SurfaceHolder
-import android.view.View
+import android.view.TextureView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import kotlinx.android.synthetic.main.activity_main.*
 import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.*
+import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -31,6 +35,18 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var imageReader: ImageReader
 
+    private lateinit var rgbSession : CameraCaptureSession
+    private lateinit var tofSession : CameraCaptureSession
+
+    private val tofCameraId : String by lazy { getTofCamera() }
+    private val rgbCameraID : String by lazy { getRgbCamera() }
+    private val tofCharacteristics : CameraCharacteristics by lazy {
+        cameraManager.getCameraCharacteristics(tofCameraId)
+    }
+    private val rgbCharacteristics : CameraCharacteristics by lazy {
+        cameraManager.getCameraCharacteristics(rgbCameraID)
+    }
+
     // Threads
     private val tofThread = HandlerThread("TOFThread").apply { start() }
     private val tofThreadHandler = Handler(tofThread.looper)
@@ -39,6 +55,64 @@ class MainActivity : AppCompatActivity() {
     private val imageReaderThread = HandlerThread("imageReaderThread").apply { start() }
     private val imageReaderHandler = Handler(imageReaderThread.looper)
 
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        appbar.setTitle(R.string.app_name)
+
+        // Request camera permission
+        ActivityCompat.requestPermissions(this, PERMISSIONS, REQUEST_CODE_PERMISSIONS)
+
+        // Listener for take photo button
+        /*
+        btn_capture.setOnClickListener {
+            Log.d(TAG, "Entered onClickListener")
+            it.isEnabled = false
+
+            takePhoto()
+            Log.d(TAG, "Exited takePhoto()")
+
+            it.post {it.isEnabled = true}
+        }
+         */
+
+        textureView2.surfaceTextureListener = mSurfaceTextureListener
+
+        //surface = Surface(textureView.surfaceTexture!!)
+
+        /*
+        surfaceView3!!.holder!!.addCallback(object : SurfaceHolder.Callback {
+            override fun surfaceChanged(p0: SurfaceHolder?, p1: Int, p2: Int, p3: Int) {}
+            override fun surfaceDestroyed(p0: SurfaceHolder?) {}
+
+            override fun surfaceCreated(p0: SurfaceHolder?) {
+                startCamera()
+            }
+        })
+
+         */
+
+        outputDirectory = getOutputDirectory()
+        cameraExecutor = Executors.newSingleThreadExecutor()
+
+    }
+
+
+    val mSurfaceTextureListener = object : TextureView.SurfaceTextureListener {
+        override fun onSurfaceTextureAvailable(p0: SurfaceTexture?, p1: Int, p2: Int) {
+            startCamera()
+        }
+
+        override fun onSurfaceTextureSizeChanged(p0: SurfaceTexture?, p1: Int, p2: Int) {
+            configureRGBOutputSize(textureView2.width, textureView2.height)
+        }
+
+        override fun onSurfaceTextureDestroyed(p0: SurfaceTexture?): Boolean { return true }
+        override fun onSurfaceTextureUpdated(p0: SurfaceTexture?) {}
+
+    }
 
     //***************** Permissions ************//
     /**
@@ -58,10 +132,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun allPermissionsGranted() = PERMISSIONS.all {
         ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun capturePhoto(): View.OnClickListener? {
-        return null;
     }
 
     private fun getOutputDirectory(): File {
@@ -85,19 +155,20 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val tofCameraId: String = getTofCamera()
-        val rgbCameraID = getRgbCamera()
 
         cameraManager.openCamera(tofCameraId, openTofCameraCallback, tofThreadHandler)
         cameraManager.openCamera(rgbCameraID, openRgbCameraCallback, rgbThreadHandler)
     }
 
-    //helper function to get ID of TOF Camera
+    /**
+     * Helper function to get ID of TOF Camera.
+     * @return a string consisting of a positive integer if found, -1 otherwise.
+     **/
     private fun getTofCamera(): String {
         for (camera in cameraManager.cameraIdList) {
             val chars: CameraCharacteristics = cameraManager.getCameraCharacteristics(camera)
             val capabilities = chars.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES)
-            var isTofCamera: Boolean = false
+            var isTofCamera = false
             if (capabilities != null) {
                 for (capability in capabilities) {
                     val capable: Boolean = capability == CameraMetadata.REQUEST_AVAILABLE_CAPABILITIES_DEPTH_OUTPUT
@@ -115,6 +186,7 @@ class MainActivity : AppCompatActivity() {
             //Log.d(TAG, "Sensor size: " + sensorSize)
             val focalLengths = chars.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
             //Log.d(TAG, "TOF Camera ID: " + camera)
+
             return camera
         }
 
@@ -144,31 +216,7 @@ class MainActivity : AppCompatActivity() {
         return "-1"
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
 
-        appbar.setTitle(R.string.app_name)
-
-        // Request camera permission
-        ActivityCompat.requestPermissions(this, PERMISSIONS, REQUEST_CODE_PERMISSIONS)
-
-        // Listener for take photo button
-        btn_capture.setOnClickListener(capturePhoto())
-
-        surfaceView3!!.holder!!.addCallback(object : SurfaceHolder.Callback {
-            override fun surfaceChanged(p0: SurfaceHolder?, p1: Int, p2: Int, p3: Int) {}
-            override fun surfaceDestroyed(p0: SurfaceHolder?) {}
-
-            override fun surfaceCreated(p0: SurfaceHolder?) {
-                startCamera()
-            }
-        })
-
-        outputDirectory = getOutputDirectory()
-        cameraExecutor = Executors.newSingleThreadExecutor()
-
-    }
 
     //********* Callbacks *********//
     private val openRgbCameraCallback = object : CameraDevice.StateCallback() {
@@ -181,12 +229,18 @@ class MainActivity : AppCompatActivity() {
             val cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraDevice.id)
             val streamConfigMap = cameraCharacteristics[CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP]!!
 
+            // Logs the rgb camera input size
+            /*
             streamConfigMap.getOutputSizes(ImageFormat.RAW_SENSOR)!!.forEach {
                 Log.d(TAG, "RGB camera size : ${it.width} * ${it.height}")
             }
+             */
 
             // Targets for the CaptureSession
-            val targets = listOf(surfaceView3.holder.surface)
+            //val targets = listOf(surfaceView3.holder.surface)
+            val surface = Surface(textureView2.surfaceTexture)
+            val targets = listOf(surface)
+
             val captureCallback = object : CameraCaptureSession.StateCallback() {
                 override fun onConfigureFailed(session: CameraCaptureSession) {
                     Log.d(TAG, "RGB Camera Configured failed")
@@ -194,24 +248,21 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onConfigured(session: CameraCaptureSession) {
                     Log.d(TAG, "RGB Configured successfully")
+                    rgbSession = session
                     val previewRequestBuilder = cameraDevice
                             .createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-                            .apply {addTarget(surfaceView3.holder.surface)}
+                            .apply {addTarget(surface)}
 
                     session.setRepeatingRequest(
                             previewRequestBuilder.build(),
                             object : CameraCaptureSession.CaptureCallback() {},
                             rgbThreadHandler
                     )
-
                 }
-
             }
 
-            cameraDevice.createCaptureSession(targets,
-                    captureCallback, rgbThreadHandler)
+            cameraDevice.createCaptureSession(targets, captureCallback, rgbThreadHandler)
         }
-
     }
 
     private val openTofCameraCallback = object : CameraDevice.StateCallback() {
@@ -260,6 +311,7 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onConfigured(session: CameraCaptureSession) {
                     Log.d(TAG, "Configured successfully")
+                    tofSession = session
                     val previewRequestBuilder = cameraDevice
                             .createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
                             .apply {addTarget(imageReader.surface)}
@@ -274,17 +326,103 @@ class MainActivity : AppCompatActivity() {
 
             }
 
-            cameraDevice.createCaptureSession(targets,
-                    captureCallback, tofThreadHandler)
+            cameraDevice.createCaptureSession(targets, captureCallback, tofThreadHandler)
         }
 
     }
 
+    private fun configureRGBOutputSize(viewWidth : Int, viewHeight : Int) {
+        Log.d(TAG, "Entered configureRGBOutputSize()")
+        val matrix = Matrix()
+        //val viewRect = RectF(0.toFloat(), 0.toFloat(), viewWidth.toFloat(), viewHeight.toFloat());
+        val viewRect = RectF(0.toFloat(), 0.toFloat(), 50.toFloat(), 50.toFloat());
+        val bufferRect = RectF(0.toFloat(), 0.toFloat(), 4032.toFloat(), 3024.toFloat());
+        val centerX = viewRect.centerX();
+        val centerY = viewRect.centerY();
+
+        bufferRect.offset(centerX - bufferRect.centerX(), centerY - bufferRect.centerY());
+        matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL);
+        matrix.postScale(4.toFloat(), 1.toFloat(), centerX, centerY);
+
+        textureView2.setTransform(matrix);
+    }
+
+    private fun takePhoto() {
+
+        val tofFile = File(applicationContext.filesDir, "BITMAP_${SDF.format(Date())}.bmp")
+        val outputStream = FileOutputStream(tofFile)
+        textureView.bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+
+        //Flush images
+        @Suppress("ControlFlowWIthEmptyBody")
+        while (imageReader.acquireNextImage() != null) {}
+
+        // Start a new queue
+        val imageQueue = ArrayBlockingQueue<Image>(IMAGE_BUFFER_SIZE)
+        imageReader.setOnImageAvailableListener({ reader ->
+            val image = reader.acquireNextImage()
+            Log.d(TAG, "Image added to new queue")
+            imageQueue.add(image)
+        }, imageReaderHandler)
+
+        val captureRequest = rgbSession
+                .device
+                .createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+                .apply { addTarget(imageReader.surface)}
+
+        rgbSession.capture(captureRequest.build(), object: CameraCaptureSession.CaptureCallback
+        () {
+
+            override fun onCaptureCompleted(session: CameraCaptureSession,
+                                            request: CaptureRequest,
+                                            result: TotalCaptureResult) {
+                super.onCaptureCompleted(session, request, result)
+                val resultTimestamp = result.get(CaptureResult.SENSOR_TIMESTAMP)
+                Log.d(TAG, "Capture result received: $resultTimestamp")
+
+                while (true) {
+                    val image = imageQueue.take()
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                            image.format != ImageFormat.DEPTH_JPEG &&
+                            image.timestamp != resultTimestamp) continue
+                    Log.d(TAG, "Matching image dequeued: ${image.timestamp}")
+
+                    // Unset the image reader listener
+                    imageReader.setOnImageAvailableListener(null, null)
+
+                    // Clear the queue if there's any left
+                    while (imageQueue.size > 0) {
+                        imageQueue.take().close()
+                    }
+
+                    saveRgbImage(result, image)
+
+                    /*
+                    // Compute EXIF orientation metadata
+                    val rotation = 0
+                    val mirrored = rgbCharacteristics.get(CameraCharacteristics.LENS_FACING) ==
+                            CameraCharacteristics.LENS_FACING_FRONT
+
+                     */
+                }
+            }
+        }, rgbThreadHandler)
+
+    }
+
+    private fun saveRgbImage(result : CaptureResult, image: Image) {
+        val dngCreator = DngCreator(rgbCharacteristics, result)
+        val output = File(applicationContext.filesDir, "IMG_${SDF.format(Date())}.dng")
+        FileOutputStream(output).use { dngCreator.writeImage(it, image)}
+    }
+
     //************ Constants *********//
     companion object {
-        private val PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
         private const val REQUEST_CODE_PERMISSIONS = 10
-        private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
+        private const val IMAGE_BUFFER_SIZE = 2
+        private val PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
+        private val SDF = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSS", Locale.US)
     }
 
 }
