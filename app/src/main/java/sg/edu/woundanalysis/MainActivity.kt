@@ -66,7 +66,6 @@ class MainActivity : AppCompatActivity() {
         ActivityCompat.requestPermissions(this, PERMISSIONS, REQUEST_CODE_PERMISSIONS)
 
         // Listener for take photo button
-        /*
         btn_capture.setOnClickListener {
             Log.d(TAG, "Entered onClickListener")
             it.isEnabled = false
@@ -76,7 +75,6 @@ class MainActivity : AppCompatActivity() {
 
             it.post {it.isEnabled = true}
         }
-         */
 
         textureView2.surfaceTextureListener = mSurfaceTextureListener
 
@@ -349,7 +347,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun takePhoto() {
 
-        val tofFile = File(applicationContext.filesDir, "BITMAP_${SDF.format(Date())}.bmp")
+        val tofFile = File(outputDirectory, "BITMAP_${SDF.format(Date())}.bmp")
+        Log.d(TAG, "files directory: ${applicationContext.filesDir}")
         val outputStream = FileOutputStream(tofFile)
         textureView.bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
 
@@ -413,7 +412,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun saveRgbImage(result : CaptureResult, image: Image) {
         val dngCreator = DngCreator(rgbCharacteristics, result)
-        val output = File(applicationContext.filesDir, "IMG_${SDF.format(Date())}.dng")
+        val output = File(outputDirectory, "IMG_${SDF.format(Date())}.dng")
         FileOutputStream(output).use { dngCreator.writeImage(it, image)}
     }
 
