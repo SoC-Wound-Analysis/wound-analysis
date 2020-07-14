@@ -14,6 +14,8 @@ import kotlin.math.*
  */
 internal var TOF_WIDTH : Int = 640
 internal var TOF_HEIGHT : Int = 480
+internal var RGB_WIDTH : Int = 4032
+internal var RGB_HEIGHT : Int = 3024
 internal const val TAG = "Wound_Analysis"
 private const val MAX_DIST = 8192
 private const val RGB_MAX_VALUE = 256 * 256
