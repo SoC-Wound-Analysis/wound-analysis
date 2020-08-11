@@ -8,6 +8,7 @@ import android.graphics.*
 import android.hardware.camera2.*
 import android.media.Image
 import android.media.ImageReader
+import android.media.MediaRecorder
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -19,6 +20,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import kotlinx.android.synthetic.main.activity_main.*
 import java.io.File
 import java.io.FileOutputStream
@@ -49,6 +51,9 @@ class MainActivity : AppCompatActivity() {
         cameraManager.getCameraCharacteristics(rgbCameraID)
     }
 
+    private val rgbMediaRecorder by lazy { MediaRecorder() }
+    private val tofMediaRecorder by lazy { MediaRecorder() }
+
     // Threads
     private val tofThread = HandlerThread("TOFThread").apply { start() }
     private val tofThreadHandler = Handler(tofThread.looper)
@@ -56,6 +61,9 @@ class MainActivity : AppCompatActivity() {
     private val rgbThreadHandler = Handler(rgbThread.looper)
     private val imageReaderThread = HandlerThread("imageReaderThread").apply { start() }
     private val imageReaderHandler = Handler(imageReaderThread.looper)
+
+    // Indicates if camera is recording
+    private var isRecording = false
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,23 +89,15 @@ class MainActivity : AppCompatActivity() {
 
         textureView2.surfaceTextureListener = mSurfaceTextureListener
 
-        //surface = Surface(textureView.surfaceTexture!!)
-
-        /*
-        surfaceView3!!.holder!!.addCallback(object : SurfaceHolder.Callback {
-            override fun surfaceChanged(p0: SurfaceHolder?, p1: Int, p2: Int, p3: Int) {}
-            override fun surfaceDestroyed(p0: SurfaceHolder?) {}
-
-            override fun surfaceCreated(p0: SurfaceHolder?) {
-                startCamera()
-            }
-        })
-
-         */
-
         outputDirectory = getOutputDirectory()
         cameraExecutor = Executors.newSingleThreadExecutor()
+    }
+    private fun configureMediaRecorders() {
+        rgbMediaRecorder.setOutputFile(outputDirectory)
+        tofMediaRecorder.setOutputFile(outputDirectory)
 
+        rgbMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE)
+        rgbMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
     }
 
 
