@@ -95,6 +95,12 @@ class MainActivity : AppCompatActivity() {
         // Request camera permission
         ActivityCompat.requestPermissions(this, PERMISSIONS, REQUEST_CODE_PERMISSIONS)
 
+
+        System.setProperty("org.apache.poi.javax.xml.stream.XMLOutputFactory",
+                "com.fasterxml.aalto.stax.OutputFactoryImpl")
+        System.setProperty("org.apache.poi.javax.xml.stream.XMLEventFactory",
+                "com.fasterxml.aalto.stax.EventFactoryImpl")
+
         // Listener for take photo button
         btn_capture.setOnClickListener {
 
