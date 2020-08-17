@@ -6,9 +6,7 @@ import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.graphics.*
 import android.hardware.camera2.*
-import android.media.Image
-import android.media.ImageReader
-import android.media.MediaRecorder
+import android.media.*
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -20,10 +18,10 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.fragment.app.FragmentActivity
 import kotlinx.android.synthetic.main.activity_main.*
 import java.io.File
 import java.io.FileOutputStream
+import java.lang.Exception
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ArrayBlockingQueue
@@ -51,9 +49,6 @@ class MainActivity : AppCompatActivity() {
         cameraManager.getCameraCharacteristics(rgbCameraID)
     }
 
-    private val rgbMediaRecorder by lazy { MediaRecorder() }
-    private val tofMediaRecorder by lazy { MediaRecorder() }
-
     // Threads
     private val tofThread = HandlerThread("TOFThread").apply { start() }
     private val tofThreadHandler = Handler(tofThread.looper)
@@ -61,6 +56,31 @@ class MainActivity : AppCompatActivity() {
     private val rgbThreadHandler = Handler(rgbThread.looper)
     private val imageReaderThread = HandlerThread("imageReaderThread").apply { start() }
     private val imageReaderHandler = Handler(imageReaderThread.looper)
+
+    // Persistent MediaRecorder surface
+    private val recorderSurface : Surface by lazy {
+        val surface = MediaCodec.createPersistentInputSurface()
+
+        //Create buffer for the real mediaRecorder
+        createRecorder(surface).apply {
+            prepare()
+            release()
+        }
+
+        surface
+    }
+
+    private val rgbMediaRecorder by lazy { createRecorder(recorderSurface) }
+    private val tofMediaRecorder by lazy { MediaRecorder() }
+
+    // Requests for video capturing sessions
+    private val recordRequest: CaptureRequest by lazy {
+        rgbSession.device.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
+            addTarget(Surface(textureView2.surfaceTexture))
+            addTarget(recorderSurface)
+            // Can set user requested fps
+        }.build()
+    }
 
     // Indicates if camera is recording
     private var isRecording = false
@@ -77,12 +97,15 @@ class MainActivity : AppCompatActivity() {
 
         // Listener for take photo button
         btn_capture.setOnClickListener {
-            Log.d(TAG, "Entered onClickListener")
-            it.isEnabled = false
 
             captureTofBitmap()
-            captureRgbPhoto()
-            Log.d(TAG, "Exited takePhoto()")
+            //captureRgbPhoto()
+
+            if (isRecording) {
+                stopRgbVideo()
+            } else {
+                captureRgbVideo()
+            }
 
             it.post {it.isEnabled = true}
         }
@@ -92,12 +115,26 @@ class MainActivity : AppCompatActivity() {
         outputDirectory = getOutputDirectory()
         cameraExecutor = Executors.newSingleThreadExecutor()
     }
-    private fun configureMediaRecorders() {
-        rgbMediaRecorder.setOutputFile(outputDirectory)
-        tofMediaRecorder.setOutputFile(outputDirectory)
 
-        rgbMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE)
-        rgbMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+    private fun createRecorder(surface : Surface) : MediaRecorder {
+
+        val profile : CamcorderProfile = CamcorderProfile.get(CamcorderProfile.QUALITY_1080P)
+        val output = File(outputDirectory, "VID_${SDF.format(Date())}.mpg")
+
+        return MediaRecorder().apply {
+            reset()
+
+            // Setting the parameters must be in a certain order
+            setVideoSource(MediaRecorder.VideoSource.SURFACE)
+            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            setOutputFile(output)
+            setVideoEncodingBitRate(profile.videoBitRate);
+            setVideoFrameRate(profile.videoFrameRate)
+            setVideoSize(profile.videoFrameWidth, profile.videoFrameHeight);
+            setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+            setInputSurface(surface)
+        }
+
     }
 
 
@@ -148,14 +185,11 @@ class MainActivity : AppCompatActivity() {
      * Initializes the camera device with camera2 API.
      */
     private fun startCamera() {
-        Log.d(TAG, "Entering startCamera()")
-
         // For unknown reasons, permission checks are required within the function despite being handled in onCreate()
         if (ActivityCompat.checkSelfPermission(baseContext,
                         Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             return
         }
-
 
         cameraManager.openCamera(tofCameraId, openTofCameraCallback, tofThreadHandler)
         cameraManager.openCamera(rgbCameraID, openRgbCameraCallback, rgbThreadHandler)
@@ -195,7 +229,10 @@ class MainActivity : AppCompatActivity() {
         return "-1"
     }
 
-    //helper function to get ID of TOF Camera
+    /**
+     * Helper function to get ID of RGB Camera.
+     * @return a string consisting of a positive integer if found, -1 otherwise.
+     **/
     private fun getRgbCamera(): String {
         for (camera in cameraManager.cameraIdList) {
             val chars: CameraCharacteristics = cameraManager.getCameraCharacteristics(camera)
@@ -216,8 +253,6 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "no camera found")
         return "-1"
     }
-
-
 
     //********* Callbacks *********//
     private val openRgbCameraCallback = object : CameraDevice.StateCallback() {
@@ -242,7 +277,7 @@ class MainActivity : AppCompatActivity() {
             rgbImageReader.setOnImageAvailableListener(null, null)
 
             val surface = Surface(textureView2.surfaceTexture)
-            val targets = listOf(surface, rgbImageReader.surface)
+            val targets = listOf(surface, rgbImageReader.surface, recorderSurface)
 
             val rgbCaptureCallback = object : CameraCaptureSession.StateCallback() {
                 override fun onConfigureFailed(session: CameraCaptureSession) {
@@ -336,7 +371,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun configureRGBOutputSize(viewWidth : Int, viewHeight : Int) {
-        Log.d(TAG, "Entered configureRGBOutputSize()")
         val matrix = Matrix()
         //val viewRect = RectF(0.toFloat(), 0.toFloat(), viewWidth.toFloat(), viewHeight.toFloat());
         val viewRect = RectF(0.toFloat(), 0.toFloat(), 50.toFloat(), 50.toFloat());
@@ -358,7 +392,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun captureRgbPhoto() {
-
         //Flush images
         @Suppress("ControlFlowWIthEmptyBody")
         while (rgbImageReader.acquireNextImage() != null) {
@@ -407,17 +440,44 @@ class MainActivity : AppCompatActivity() {
 
                     break
 
-                    /*
-                    // Compute EXIF orientation metadata
-                    val rotation = 0
-                    val mirrored = rgbCharacteristics.get(CameraCharacteristics.LENS_FACING) ==
-                            CameraCharacteristics.LENS_FACING_FRONT
-
-                     */
                 }
             }
         }, rgbThreadHandler)
 
+    }
+
+    private fun captureRgbVideo() {
+        /*
+        val recorderSurface : Surface = rgbMediaRecorder.surface
+        val surfaces = mutableListOf<Surface>(recorderSurface)
+         */
+
+        Log.d(TAG, "Entered capture video funtion")
+        rgbSession.setRepeatingRequest(recordRequest, null, rgbThreadHandler)
+
+        rgbMediaRecorder.apply {
+            prepare()
+            start()
+        }
+
+        Log.d(TAG, "Exiting capture video funtion")
+
+    }
+
+    fun stopRgbVideo() {
+        Log.d(TAG, "Entering stop video function")
+
+        isRecording = false
+
+        try {
+            rgbSession.stopRepeating()
+            rgbSession.abortCaptures()
+        } catch (e : Exception) {
+            e.printStackTrace()
+        }
+
+        rgbMediaRecorder.stop()
+        rgbMediaRecorder.reset()
     }
 
     private fun saveRgbImage(result : CaptureResult, image: Image) {
@@ -432,6 +492,7 @@ class MainActivity : AppCompatActivity() {
         private const val IMAGE_BUFFER_SIZE = 2
         private val PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
         private val SDF = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSS", Locale.US)
+        private const val RECORDER_VIDEO_BITRATE : Int = 10_000_000
     }
 
 }
