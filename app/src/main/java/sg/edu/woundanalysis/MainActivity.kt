@@ -85,6 +85,14 @@ class MainActivity : AppCompatActivity() {
         }.build()
     }
 
+    val rgbCaptureRequest : CaptureRequest by lazy {
+        rgbSession
+                .device
+                .createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+                .apply { addTarget(rgbImageReader.surface) }
+                .build()
+    }
+
     // Indicates if camera is recording
     private var isRecording = false
 
@@ -343,23 +351,25 @@ class MainActivity : AppCompatActivity() {
                     }
                     .maxBy { it.height * it.width }!!
 
-            tofImageReader = ImageReader.newInstance(previewSize.width, previewSize.height, ImageFormat.DEPTH16, 2)
+            tofImageReader = ImageReader.newInstance(previewSize.width, previewSize.height, ImageFormat.DEPTH16, 5)
 
             tofImageReader.setOnImageAvailableListener({ reader ->
-                val image = reader.acquireNextImage()
-                val depthMask = getDepthArray(image)
+                val image = reader.acquireLatestImage()
+                if (image != null) {
+                    val depthMask = getDepthArray(image)
 
-                // All the testing logs
-                val testDist = 763
-                //Log.d(TAG, "Image available in queue: ${image.timestamp}, " +
-                //       "Distance: ${getCenterDistance(depthMask)}mm")
-                //Log.d(TAG, "FOV for object of width ${testDist}mm: ${getFov(depthMask, testDist)}")
+                    // All the testing logs
+                    val testDist = 763
+                    //Log.d(TAG, "Image available in queue: ${image.timestamp}, " +
+                    //       "Distance: ${getCenterDistance(depthMask)}mm")
+                    //Log.d(TAG, "FOV for object of width ${testDist}mm: ${getFov(depthMask, testDist)}")
 
-                val bitmap = convertToRGBBitmap(depthMask)
-                val canvas: Canvas = textureView.lockCanvas()
-                canvas.drawBitmap(bitmap, defaultBitMapTransform(textureView), null)
-                textureView.unlockCanvasAndPost(canvas)
-                image.close()
+                    val bitmap = convertToRGBBitmap(depthMask)
+                    val canvas: Canvas = textureView.lockCanvas()
+                    canvas.drawBitmap(bitmap, defaultBitMapTransform(textureView), null)
+                    textureView.unlockCanvasAndPost(canvas)
+                    image.close()
+                }
             }, tofImageReaderHandler)
 
             // Targets for the CaptureSession
@@ -415,24 +425,19 @@ class MainActivity : AppCompatActivity() {
     private fun captureRgbPhoto() {
         //Flush images
         @Suppress("ControlFlowWIthEmptyBody")
-        while (rgbImageReader.acquireNextImage() != null) {
+        while (rgbImageReader.acquireLatestImage() != null) {
             Log.d(TAG, "Inside the flush images loop")
         }
 
         // Start a new queue
         val imageQueue = ArrayBlockingQueue<Image>(IMAGE_BUFFER_SIZE)
         rgbImageReader.setOnImageAvailableListener({ reader ->
-            val image = reader.acquireNextImage()
+            val image = reader.acquireLatestImage()
             Log.d(TAG, "Image added to new queue")
             imageQueue.add(image)
         }, rgbImageReaderHandler)
 
-        val captureRequest = rgbSession
-                .device
-                .createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
-                .apply { addTarget(rgbImageReader.surface)}
-
-        rgbSession.capture(captureRequest.build(), object: CameraCaptureSession.CaptureCallback() {
+        rgbSession.capture(rgbCaptureRequest, object: CameraCaptureSession.CaptureCallback() {
 
             override fun onCaptureCompleted(session: CameraCaptureSession,
                                             request: CaptureRequest,
@@ -512,7 +517,7 @@ class MainActivity : AppCompatActivity() {
      */
     @Throws(NullPointerException::class)
     private fun acquireDepthArray() : Array<Int> {
-        val image = tofImageReader.acquireNextImage()
+        val image = tofImageReader.acquireLatestImage()
         return getDepthArray(image)
     }
 
@@ -524,5 +529,4 @@ class MainActivity : AppCompatActivity() {
         internal val SDF = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSS", Locale.US)
         private const val RECORDER_VIDEO_BITRATE : Int = 10_000_000
     }
-
 }
