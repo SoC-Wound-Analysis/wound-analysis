@@ -2,32 +2,34 @@ package sg.edu.woundanalysis
 
 import org.apache.poi.ss.usermodel.WorkbookFactory
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.util.*
 
 /**
- * Writes the value "TEST" to the cell at the first row and first column of worksheet.
+ * Writes the values of the depth array to the cells of a worksheet.
  */
-fun writeToExcelFile(filepath: String, depthArray : Array<Int>) {
+fun writeToExcelFile(outputDirectory: File, depthArray : Array<Int>) {
     //Instantiate Excel workbook:
     val xlWb = XSSFWorkbook()
     //Instantiate Excel worksheet:
     val xlWs = xlWb.createSheet()
 
-    //Row index specifies the row in the worksheet (starting at 0):
-    val rowNumber = 0
-    //Cell index specifies the column within the chosen row (starting at 0):
-    val columnNumber = 0
-
     //Write text value to cell located at ROW_NUMBER / COLUMN_NUMBER:
-    xlWs.createRow(rowNumber)
-            .createCell(columnNumber)
-            .setCellValue(depthArray[rowNumber* TOF_WIDTH + columnNumber].toString())
+    for (rowNumber in 0 until TOF_HEIGHT) {
+        val row = xlWs.createRow(rowNumber)
+        for (columnNumber in 0 until TOF_WIDTH) {
+            row.createCell(columnNumber)
+                    .setCellValue(depthArray[rowNumber * TOF_WIDTH + columnNumber].toString())
+        }
+    }
 
     //Write file:
-    val outputStream = FileOutputStream(filepath)
+    val excelFile = File(outputDirectory, "BITMAP_${MainActivity.SDF.format(Date())}.xlsx")
+    val outputStream = FileOutputStream(excelFile)
     xlWb.write(outputStream)
-    xlWb.close()
+    outputStream.close()
 }
 
 /**

@@ -22,6 +22,7 @@ import kotlinx.android.synthetic.main.activity_main.*
 import java.io.File
 import java.io.FileOutputStream
 import java.lang.Exception
+import java.lang.NullPointerException
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ArrayBlockingQueue
@@ -54,8 +55,10 @@ class MainActivity : AppCompatActivity() {
     private val tofThreadHandler = Handler(tofThread.looper)
     private val rgbThread = HandlerThread("RGBThread").apply { start() }
     private val rgbThreadHandler = Handler(rgbThread.looper)
-    private val imageReaderThread = HandlerThread("imageReaderThread").apply { start() }
-    private val imageReaderHandler = Handler(imageReaderThread.looper)
+    private val tofImageReaderThread = HandlerThread("imageReaderThread").apply { start() }
+    private val tofImageReaderHandler = Handler(tofImageReaderThread.looper)
+    private val rgbImageReaderThread = HandlerThread("imageReaderThread").apply { start() }
+    private val rgbImageReaderHandler = Handler(rgbImageReaderThread.looper)
 
     // Persistent MediaRecorder surface
     private val recorderSurface : Surface by lazy {
@@ -105,13 +108,25 @@ class MainActivity : AppCompatActivity() {
         btn_capture.setOnClickListener {
 
             captureTofBitmap()
-            //captureRgbPhoto()
 
+            captureRgbPhoto()
+
+            // To generate excelsheet for depth array
+            try {
+                val depthMask = acquireDepthArray()
+                writeToExcelFile(outputDirectory, depthMask)
+            } catch (e: NullPointerException) {
+                Log.e(TAG, "tofImageReader is not available yet")
+            }
+
+            // To record an RGB video
+            /*
             if (isRecording) {
                 stopRgbVideo()
             } else {
                 captureRgbVideo()
             }
+             */
 
             it.post {it.isEnabled = true}
         }
@@ -345,7 +360,7 @@ class MainActivity : AppCompatActivity() {
                 canvas.drawBitmap(bitmap, defaultBitMapTransform(textureView), null)
                 textureView.unlockCanvasAndPost(canvas)
                 image.close()
-            }, imageReaderHandler)
+            }, tofImageReaderHandler)
 
             // Targets for the CaptureSession
             val targets = listOf(tofImageReader.surface)
@@ -410,7 +425,7 @@ class MainActivity : AppCompatActivity() {
             val image = reader.acquireNextImage()
             Log.d(TAG, "Image added to new queue")
             imageQueue.add(image)
-        }, imageReaderHandler)
+        }, rgbImageReaderHandler)
 
         val captureRequest = rgbSession
                 .device
@@ -492,12 +507,21 @@ class MainActivity : AppCompatActivity() {
         FileOutputStream(output).use { dngCreator.writeImage(it, image)}
     }
 
+    /**
+     * Can only be called when tofImageReader is ready.
+     */
+    @Throws(NullPointerException::class)
+    private fun acquireDepthArray() : Array<Int> {
+        val image = tofImageReader.acquireNextImage()
+        return getDepthArray(image)
+    }
+
     //************ Constants *********//
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
         private const val IMAGE_BUFFER_SIZE = 2
         private val PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
-        private val SDF = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSS", Locale.US)
+        internal val SDF = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSS", Locale.US)
         private const val RECORDER_VIDEO_BITRATE : Int = 10_000_000
     }
 
