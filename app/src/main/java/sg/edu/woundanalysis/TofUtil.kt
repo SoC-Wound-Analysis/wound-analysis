@@ -89,11 +89,12 @@ fun defaultBitMapTransform(view : TextureView) : Matrix {
     val centerX : Int = view.width / 2
     val centerY : Int = view.height / 2
 
-    val bufferRect : RectF = RectF(0.toFloat(), 0.toFloat(), TOF_WIDTH.toFloat(), TOF_HEIGHT.toFloat())
-    //Log.d(TAG, "defaultBitMapTransform(): view width: ${view.width}, view height: ${view.height}")
+    //val bufferRect : RectF = RectF(0.toFloat(), 0.toFloat(), TOF_WIDTH.toFloat(), TOF_HEIGHT.toFloat())
+    //val viewRect : RectF = RectF(0.toFloat(), 0.toFloat(), view.width.toFloat(), view.height.toFloat())
+    val bufferRect : RectF = RectF(0.toFloat(), 0.toFloat(), TOF_HEIGHT.toFloat(), TOF_WIDTH.toFloat())
     val viewRect : RectF = RectF(0.toFloat(), 0.toFloat(), view.width.toFloat(), view.height.toFloat())
     matrix.setRectToRect(bufferRect, viewRect, Matrix.ScaleToFit.CENTER)
-    matrix.postRotate(90.toFloat(), centerX.toFloat(), centerY.toFloat())
+    matrix.postRotate(90.toFloat(), centerY.toFloat(), centerX.toFloat())
 
     return matrix
 }

@@ -10,25 +10,20 @@ import java.util.*
 /**
  * Writes the values of the depth array to the cells of a worksheet.
  */
-fun writeToExcelFile(outputDirectory: File, depthArray : Array<Int>) {
-    //Instantiate Excel workbook:
-    val xlWb = XSSFWorkbook()
-    //Instantiate Excel worksheet:
-    val xlWs = xlWb.createSheet()
+fun writeToTxtFile(outputDirectory: File, depthArray : Array<Int>) {
+    val txtFile = File(outputDirectory, "BITMAP_${MainActivity.SDF.format(Date())}.txt")
+    val outputStream = FileOutputStream(txtFile)
 
-    //Write text value to cell located at ROW_NUMBER / COLUMN_NUMBER:
+    //Write text value to the .txt File, separated by a -:
     for (rowNumber in 0 until TOF_HEIGHT) {
-        val row = xlWs.createRow(rowNumber)
         for (columnNumber in 0 until TOF_WIDTH) {
-            row.createCell(columnNumber)
-                    .setCellValue(depthArray[rowNumber * TOF_WIDTH + columnNumber].toString())
+            outputStream.write(depthArray[rowNumber * TOF_WIDTH + columnNumber])
+            if (rowNumber * TOF_WIDTH + columnNumber != TOF_HEIGHT * TOF_WIDTH - 1) {
+                outputStream.write("-".toByteArray())
+            }
         }
     }
 
-    //Write file:
-    val excelFile = File(outputDirectory, "BITMAP_${MainActivity.SDF.format(Date())}.xlsx")
-    val outputStream = FileOutputStream(excelFile)
-    xlWb.write(outputStream)
     outputStream.close()
 }
 

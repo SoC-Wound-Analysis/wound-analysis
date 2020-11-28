@@ -115,26 +115,26 @@ class MainActivity : AppCompatActivity() {
         // Listener for take photo button
         btn_capture.setOnClickListener {
 
-            captureTofBitmap()
-
-            captureRgbPhoto()
+            //captureRgbPhoto()
 
             // To generate excelsheet for depth array
+            /*
             try {
                 val depthMask = acquireDepthArray()
+                saveTofBitmap(convertToRGBBitmap(depthMask))
                 writeToExcelFile(outputDirectory, depthMask)
             } catch (e: NullPointerException) {
                 Log.e(TAG, "tofImageReader is not available yet")
             }
 
+             */
+
             // To record an RGB video
-            /*
             if (isRecording) {
                 stopRgbVideo()
             } else {
                 captureRgbVideo()
             }
-             */
 
             it.post {it.isEnabled = true}
         }
@@ -155,7 +155,7 @@ class MainActivity : AppCompatActivity() {
 
             // Setting the parameters must be in a certain order
             setVideoSource(MediaRecorder.VideoSource.SURFACE)
-            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS)
             setOutputFile(output)
             setVideoEncodingBitRate(profile.videoBitRate);
             setVideoFrameRate(profile.videoFrameRate)
@@ -416,10 +416,10 @@ class MainActivity : AppCompatActivity() {
         textureView2.setTransform(matrix);
     }
 
-    private fun captureTofBitmap() {
+    private fun saveTofBitmap(bitmap: Bitmap) {
         val tofFile = File(outputDirectory, "BITMAP_${SDF.format(Date())}.bmp")
         val outputStream = FileOutputStream(tofFile)
-        textureView.bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
     }
 
     private fun captureRgbPhoto() {
@@ -517,8 +517,15 @@ class MainActivity : AppCompatActivity() {
      */
     @Throws(NullPointerException::class)
     private fun acquireDepthArray() : Array<Int> {
-        val image = tofImageReader.acquireLatestImage()
+        lateinit var image : Image
+        while (true) {
+            image = tofImageReader.acquireLatestImage()
+            if (image != null) {
+                break
+            }
+        }
         return getDepthArray(image)
+
     }
 
     //************ Constants *********//
