@@ -1,11 +1,11 @@
 package sg.edu.woundanalysis
 
 import org.apache.poi.ss.usermodel.WorkbookFactory
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.*
+
 
 /**
  * Writes the values of the depth array to the cells of a worksheet.
@@ -17,7 +17,7 @@ fun writeToTxtFile(outputDirectory: File, depthArray : Array<Int>) {
     //Write text value to the .txt File, separated by a -:
     for (rowNumber in 0 until TOF_HEIGHT) {
         for (columnNumber in 0 until TOF_WIDTH) {
-            outputStream.write(depthArray[rowNumber * TOF_WIDTH + columnNumber])
+            outputStream.write(depthArray[rowNumber * TOF_WIDTH + columnNumber].toString().toByteArray())
             if (rowNumber * TOF_WIDTH + columnNumber != TOF_HEIGHT * TOF_WIDTH - 1) {
                 outputStream.write("-".toByteArray())
             }

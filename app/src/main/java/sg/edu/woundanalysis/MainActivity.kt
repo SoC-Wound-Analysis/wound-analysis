@@ -115,26 +115,25 @@ class MainActivity : AppCompatActivity() {
         // Listener for take photo button
         btn_capture.setOnClickListener {
 
-            //captureRgbPhoto()
+            captureRgbPhoto()
 
-            // To generate excelsheet for depth array
-            /*
+//             To generate excelsheet for depth array
+
             try {
                 val depthMask = acquireDepthArray()
                 saveTofBitmap(convertToRGBBitmap(depthMask))
-                writeToExcelFile(outputDirectory, depthMask)
+                writeToTxtFile(getOutputDirectory(), depthMask)
+//                writeToExcelFile(outputDirectory, depthMask)
             } catch (e: NullPointerException) {
                 Log.e(TAG, "tofImageReader is not available yet")
             }
 
-             */
-
-            // To record an RGB video
-            if (isRecording) {
-                stopRgbVideo()
-            } else {
-                captureRgbVideo()
-            }
+//            // To record an RGB video
+//            if (isRecording) {
+//                stopRgbVideo()
+//            } else {
+//                captureRgbVideo()
+//            }
 
             it.post {it.isEnabled = true}
         }
@@ -155,7 +154,7 @@ class MainActivity : AppCompatActivity() {
 
             // Setting the parameters must be in a certain order
             setVideoSource(MediaRecorder.VideoSource.SURFACE)
-            setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS)
+            setOutputFormat(MediaRecorder.OutputFormat.DEFAULT)
             setOutputFile(output)
             setVideoEncodingBitRate(profile.videoBitRate);
             setVideoFrameRate(profile.videoFrameRate)
@@ -349,7 +348,7 @@ class MainActivity : AppCompatActivity() {
                         it.width < Resources.getSystem().displayMetrics.widthPixels &&
                                 it.height < Resources.getSystem().displayMetrics.heightPixels
                     }
-                    .maxBy { it.height * it.width }!!
+                    .maxByOrNull { it.height * it.width }!!
 
             tofImageReader = ImageReader.newInstance(previewSize.width, previewSize.height, ImageFormat.DEPTH16, 5)
 
